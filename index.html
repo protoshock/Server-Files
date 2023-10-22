@@ -1,0 +1,173 @@
+<html>
+    <head>
+        <title>Protoshock Server Status</title>
+        <meta content="Protoshock Server Status" property="og:title" />
+        <meta content="Protoshock Server Status" property="og:description" />
+        <meta content="#00fffb" data-react-helmet="true" name="theme-color" />
+        <style>
+            body{
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 10px;
+                background-color: #2c2f33;
+                color: white;
+            }
+            .room{
+                background-color: rgb(28, 28, 28);
+                height: 50px;
+                font-size: 15px;
+                padding-left: 25px;
+                line-height: 50px;
+            }
+            .container{
+                display: flex;
+            }
+            .graph{
+                width: 50%;
+                height: 50%;
+                max-width: 50%;
+            }
+            .graph2{
+                width: 50%;
+                height: 50%;
+                max-width: 50%;
+            }
+            .good{
+                color: rgb(0, 255, 0);
+            }
+            .medium{
+                color: yellow;
+            }
+            .bad{
+                color: red;
+            }
+            .infotext{
+                font-size: 15px;
+            }
+        </style>
+        <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    </head>
+    <body>
+        <h1>Protoshock Server Status</h1>
+        <div id="display"><p>Waiting for connection...</p><br><div class='room'><p>No rooms</p></div><br/></div></div>
+        <script>
+            const socket = io();
+            const displayelement = document.getElementById("display");
+            var i = 0;
+            var usagehistory = [0, 8000];
+            var playerhistory = [0, 5];
+            var time = [0,0];
+            var ping = 0;
+            socket.emit("webmessage");
+            socket.on("pong", (timestampdata) =>{
+                var d = new Date();
+                var currentMilliseconds = d.getMilliseconds();
+                ping = currentMilliseconds - timestampdata;
+            });
+            
+            socket.on('webmessageclient', (data) => {
+                var d = new Date();
+                var currentMilliseconds = d.getMilliseconds();
+                socket.emit("ping", currentMilliseconds);
+                const rooms = data.rooms;
+                const playercount = data.globalplayercount;
+                const Uptime = data.uptime;
+                const Usage = data.usage;
+                usagehistory.push(Usage);
+                playerhistory.push(playercount);
+                time.push(i);
+                while (usagehistory.length > 25) {
+                    usagehistory.shift();
+                    playerhistory.shift();
+                    time.shift();   
+                    usagehistory[0] = 0;
+                    playerhistory[0] = 0;
+                    usagehistory[1] = 8000;
+                    playerhistory[1] = 5;
+                }
+                var roomtext = "";
+                rooms.forEach(room => {
+                    roomtext = roomtext 
+                    + "<div class='room'><p> Room ID: " + room.RoomID
+                    + " | Version: " + room.RoomGameVersion
+                    + " | Room Name: " + room.RoomName
+                    + " | Player Count: " + room.RoomPlayerCount + "/" + room.RoomPlayerMax
+                    + "</p></div> <br/>";
+                });
+                if(rooms.length == 0){
+                    roomtext = "<div class='room'><p>No rooms</p></div><br/></div>";
+                }
+
+                var pingtext = "";
+                if(ping < 50){
+                    pingtext = "<p>Ping: </p><p class='good'>" + ping + "ms</p>"
+                } 
+                else{
+                    if(ping > 50 && ping < 100){
+                        pingtext = "<p>Ping: </p><p class='medium'>" + ping + "ms</p>"
+                    }
+                    else{
+                        pingtext = "<p>Ping: </p><p class='bad'>" + ping + "ms</p>"
+                    }
+                }
+
+                displayelement.innerHTML = 
+                "<div class='infotext'> <p>Uptime: " + Uptime + "<p>"
+                + "<p>Server global player count: " + playercount + "</p>"
+                + "<p>Memory Usage: " + Usage + " MB <p>"
+                + "<div class='container'>"+ pingtext+"</div></div>"
+                + "<div class='container'> <canvas class='graph' id='Memory'></canvas>"
+                + "<canvas class='graph2' id='Player Count'></canvas></div>"               
+                + roomtext;
+
+                new Chart(document.getElementById("Memory"), {
+                type: 'line',
+                data: {
+                    labels: time,
+                    datasets: [{ 
+                        data: usagehistory,
+                        label: "Memory Usage",
+                        borderColor: "#00ffff",
+                        fill: false
+                    }
+                    ]
+                },
+                options: {
+                    animation: {
+        duration: 0
+    },
+                    title: {
+                    display: true,
+                    text: 'Server Stats'
+                    },
+                }
+                });
+                new Chart(document.getElementById("Player Count"), {
+                type: 'line',
+                data: {
+                    labels: time,
+                    datasets: [
+                    {
+                        data: playerhistory,
+                        label: "Player count",
+                        borderColor: "#ff0000",
+                        fill: false
+                    }
+                    ]
+                },
+                options: {
+                    animation: {
+        duration: 0
+    },
+                    title: {
+                    display: true,
+                    text: 'Server Stats'
+                    },
+                }
+                });
+
+                i++;
+            });
+        </script>
+    </body>
+</html>
