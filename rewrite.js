@@ -5,8 +5,7 @@ const { gzip, ungzip } = require('node-gzip');
 const path = require('path');
 const express = require('express');
 const process = require('process');
-const os = require('node:os');
-
+const { totalmem, freemem } = require('node:os');
 // Web Server
 const app = express();
 const server = http.createServer(app);
@@ -87,112 +86,103 @@ async function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
 }
   
 function removePlayer(ws) {
-    const player = getPlayerBySocket(ws);
-    if (!player) return;
-  
-    const roomId = player.roomId;
-    const room = serverData.rooms.get(roomId);
-    if (room) {
-      room.players.delete(player.id);
-      playerCount--;
-  
-      console.log(`${player.id} left from room: ${roomId}`);
-      console.log(`Player count: ${playerCount}`);
-  
-      if (room.players.size === 0) {
-        serverData.rooms.delete(roomId);
-      }
+  const player = getPlayerBySocket(ws);
+  if (!player) return;
+
+  const roomId = player.roomId;
+  const room = serverData.rooms.get(roomId);
+  if (room) {
+    room.players.delete(player.id);
+    playerCount--;
+
+    if (room.players.size === 0) {
+      serverData.rooms.delete(roomId);
     }
-    serverData.players.delete(player.id);
+  }
+  serverData.players.delete(player.id);
 }
   
-async function broadcastRoomInfo(ws) {
-    const playerIdsPromises = [];
-  
-    serverData.players.forEach(async (player) => {
-      const room = serverData.rooms.get(player.roomId);
-  
-      if (room) {
-        const playerIds = Array.from(room.players.keys()).map(id => ({
-          playerId: id,
-          local: id === player.id,
-          roomId: room.id,
-        }));
-  
-        const json = JSON.stringify({
-          action: 'roominfo',
-          playerIds: playerIds,
-          scene: room.scene,
-          scenepath: room.scenepath,
-          gameversion: room.gameversion,
-          id: createId(),
-        });
-  
-        console.log(json);
-  
-        playerIdsPromises.push(SendMessage(player.socket, json));
-      }
+function broadcastRoomInfo(ws) {
+  const playerIdsPromises = [];
+
+  for (const [roomId, room] of serverData.rooms) {
+    const playerIds = Array.from(room.players.keys()).map(id => ({
+      playerId: id,
+      local: id === player.id,
+      roomId: room.id,
+    }));
+
+    const json = JSON.stringify({
+      action: 'roominfo',
+      playerIds: playerIds,
+      scene: room.scene,
+      scenepath: room.scenepath,
+      gameversion: room.gameversion,
+      id: createId(),
     });
-  
-    // Await all the message sending promises concurrently
-    await Promise.all(playerIdsPromises);
+
+    playerIdsPromises.push(SendMessage(player.socket, json));
+  }
+
+  // Await all the message sending promises concurrently
+  return Promise.all(playerIdsPromises);
 }
   
 async function handleRPC(ws, data) {
-    const player = getPlayerBySocket(ws);
-  
-    if (!player) return;
-  
-    const players = getPlayersInRoom(player.roomId);
-  
-    const parsedData = JSON.parse(data);
-    const { action, rpc } = parsedData;
-  
-    const messageData = JSON.stringify({
-      action,
-      rpc,
-      sender: player.id,
-      id: createId(),
-    });
-  
-    const sendMessagePromises = [];
-  
-    players.forEach((p) => {
-      if (p.socket && p.socket.send) {
-        sendMessagePromises.push(SendMessage(p.socket, messageData));
-      }
-    });
-  
-    await Promise.all(sendMessagePromises);
-  
-    player.lastMessageTime = Date.now();
-}  
+  const player = getPlayerBySocket(ws);
+
+  if (!player) return;
+
+  const players = getPlayersInRoom(player.roomId);
+
+  const parsedData = JSON.parse(data);
+  const { action, rpc } = parsedData;
+
+  const messageData = JSON.stringify({
+    action,
+    rpc,
+    sender: player.id,
+    id: createId(),
+  });
+
+  const sendMessagePromises = [];
+
+  for (const p of players) {
+    if (p.socket && p.socket.send) {
+      sendMessagePromises.push(SendMessage(p.socket, messageData));
+    }
+  }
+
+  await Promise.all(sendMessagePromises);
+
+  player.lastMessageTime = Date.now();
+}
 
 function convertSecondsToUnits(seconds) {
-    const timeUnits = [
-      { unit: 'year', seconds: 31536000 },
-      { unit: 'month', seconds: 2592000 },
-      { unit: 'week', seconds: 604800 },
-      { unit: 'day', seconds: 86400 },
-      { unit: 'hour', seconds: 3600 },
-      { unit: 'minute', seconds: 60 },
-      { unit: 'second', seconds: 1 },
-    ];
-  
-    let durationString = '';
-    let remainingSeconds = seconds; // Track remaining seconds
-  
-    timeUnits.forEach(({ unit, seconds }) => {
-      const value = Math.floor(remainingSeconds / seconds); // Calculate the value
-      remainingSeconds %= seconds; // Update remaining seconds
-  
-      if (value > 0) {
-        durationString += `${value} ${unit}${value !== 1 ? 's' : ''} `;
-      }
-    });
-  
-    return durationString.trim();
-}  
+  const timeUnits = [
+    { unit: 'year', seconds: 31536000 },
+    { unit: 'month', seconds: 2592000 },
+    { unit: 'week', seconds: 604800 },
+    { unit: 'day', seconds: 86400 },
+    { unit: 'hour', seconds: 3600 },
+    { unit: 'minute', seconds: 60 },
+    { unit: 'second', seconds: 1 },
+  ];
+
+  let durationString = '';
+  let remainingSeconds = seconds;
+
+  for (const { unit, seconds } of timeUnits) {
+    const value = Math.floor(remainingSeconds / seconds);
+    remainingSeconds %= seconds;
+
+    if (value > 0) {
+      durationString += `${value} ${unit}${value !== 1 ? 's' : ''} `;
+    }
+  }
+
+  return durationString.trim();
+}
 
 async function roomList(ws, amount, emptyonly) {
     const roomsToSend = [];
@@ -266,15 +256,11 @@ function handleAction(ws, data) {
 }
 
 function SendMessage(ws, data) {
-    let messages = MessagesToSend.get(ws);
-  
-    if (!messages) {
-      messages = [];
-      MessagesToSend.set(ws, messages);
-    }
-  
-    messages.push(data);
+  const messages = MessagesToSend.get(ws) || [];
+  messages.push(data);
+  MessagesToSend.set(ws, messages);
 }
+
   
 async function sendBundledCompressedMessages() {
     MessagesToSend.forEach(async (messages, socket) => {
@@ -301,43 +287,42 @@ const wss = new Server(server, {
 });
 
 setInterval(() => {
-    if (connectedWebClients.size > 0) {
+  if (connectedWebClients.size > 0) {
       const roomslistid = [];
-      const roomEntries = serverData.rooms.entries();
       let count = 0;
-  
-      roomEntries.forEach(([_, room]) => {
-        if (count > 25) {
-          return;
-        }
-        roomslistid.push({
-          RoomID: room.id,
-          RoomName: room.name,
-          RoomPlayerCount: room.players.size,
-          RoomPlayerMax: room.maxplayers,
-          RoomGameVersion: room.gameversion,
-        });
-        count++;
-      });      
-  
-      const totalMemoryInBytes = os.totalmem();
+
+      for (const [_, room] of serverData.rooms) {
+          if (count > 25) {
+              break;
+          }
+          roomslistid.push({
+              RoomID: room.id,
+              RoomName: room.name,
+              RoomPlayerCount: room.players.size,
+              RoomPlayerMax: room.maxplayers,
+              RoomGameVersion: room.gameversion,
+          });
+          count++;
+      }
+
+      const totalMemoryInBytes = totalmem();
       const totalMemoryInMB = (totalMemoryInBytes / (1024 ** 2)).toFixed(2);
-  
-      const freeMemoryInBytes = os.freemem();
+
+      const freeMemoryInBytes = freemem();
       const freeMemoryInMB = (freeMemoryInBytes / (1024 ** 2)).toFixed(2);
-  
+
       const usedMemoryInMB = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
-  
-      connectedWebClients.forEach((client) => {
-        const data = {
-          rooms: roomslistid,
-          globalplayercount: playerCount,
-          uptime: convertSecondsToExactDuration(Math.round(process.uptime())),
-          usage: Math.round(usedMemoryInMB),
-        };
-        client.emit("webmessageclient", data);
-      });
-    }
+
+      for (const client of connectedWebClients.values()) {
+          const data = {
+              rooms: roomslistid,
+              globalplayercount: playerCount,
+              uptime: convertSecondsToUnits(Math.round(process.uptime())),
+              usage: Math.round(usedMemoryInMB),
+          };
+          client.emit("webmessageclient", data);
+      }
+  }
 }, 1000);
 
 const connectedWebClients = new Map();
