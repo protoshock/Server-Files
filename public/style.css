@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css?family=Lobster|Quicksand');
+body {
+  background-color: #f2f2f2;
+  font-family: 'Quicksand', sans-serif;
+}
+.container_data {
+  background-color: #fff;
+  box-shadow: 0 2px 5px 0 rgba(180, 180, 180, 0.5);
+}
+.container {
+   display: flex;
+   min-height: 100%;
+   flex-direction: column-reverse;
+}
+.stat-box {
+  position:sticky;
+  z-index: 2;
+  padding: 20px;
+  text-align: center;
+}
+.stat-box .title {
+  font-family: 'Lobster', cursive;
+  font-size: 4em;
+}
+.stat-box .title.pos {
+  color: #00B16A;
+}
+.stat-box .title.neg {
+  color: #f03434;
+}
+.stat-box .body {
+  font-size: 18px;
+  color: #555;
+}
+
+.graph, .graph2{
+  width: 65em;
+  height: 50em;
+  max-width: 63em;
+}
+.container_graph2 {
+  display: flex;
+  float: left;
+  height: 30em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rooms-container {
+  flex-grow: 1;
+  display: flex;
+  position: relative;
+  flex-direction: column;
+}
+.room{
+  background-color: 113946;
+  height: 50px;
+  min-width: 55em;
+  font-size: 15px;
+  line-height: 50px;
+  position: relative;
+  color: white;
+}
+.room-text {
+  margin-left: 10px;
+}
+.container_graph {
+  display: flex;
+  flex: 1;
+  height: 30em;
+  justify-content: center;
+  align-items: center;
+  align-self: center;
+}
+
+.good{
+  color: rgb(0, 255, 0);
+}
+.medium{
+  color: yellow;
+}
+.bad{
+  color: red;
+}
+.nonbs_infotext{
+  font-size: 20px;
+}
+.nonbs_center {
+  text-align: center;
+}
