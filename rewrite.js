@@ -91,6 +91,10 @@ function removePlayer(ws) {
   serverData.players.delete(player.id);
 }
   
+setInterval(function(){
+  global.gc();
+  console.log('GC done')
+}, 1000*30);
 
 function broadcastRoomInfo(ws) {
   const player = getPlayerBySocket(ws)
