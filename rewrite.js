@@ -1,4 +1,5 @@
-const { createServer }= require('http');
+const fastify = require('fastify')({ logger: true });
+const httpServer = fastify.server;
 const { Server } = require('socket.io')
 const { v4: uuidv4 } = require('uuid');
 const { gzip, ungzip } = require('node-gzip');
@@ -6,9 +7,6 @@ const path = require('node:path');
 const express = require('express');
 const { uptime } = require('process');
 const { totalmem, freemem } = require('node:os');
-// Web Server
-const app = express();
-const server = createServer(app);
 try {
 // Game Server
 let playerCount = 0;
@@ -259,7 +257,7 @@ async function sendBundledCompressedMessages() {
   MessagesToSend.clear();
 }
 
-const wss = new Server(server, {
+const wss = new Server(httpServer, {
     transports: ['websocket', 'polling'],
     maxHttpBufferSize: 10e8,
     pingTimeout: 60000
@@ -357,6 +355,10 @@ wss.on('connection', (ws) => {
   console.log(err)
 }
 const port = 8880;
-server.listen(port, () => {
-    console.log(`Server is listening on port ${port}`);
+fastify.listen({ port: port }, (err, address) => {
+  if (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+  console.log(`Server is listening on ${address}`);
 });
