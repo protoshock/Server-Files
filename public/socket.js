@@ -83,6 +83,11 @@ const socket = io();
 
 
             socket.on('webmessageclient', (data) => {
+              if (i > 0) {
+                document.getElementById("Memory").remove();
+                document.getElementById("Player Count").remove();
+            }
+            
                 var d = new Date();
                 var currentMilliseconds = d.getMilliseconds();
                 socket.emit("ping", currentMilliseconds);
@@ -128,66 +133,15 @@ const socket = io();
                         pingtext = `<span class='bad'>${ping}ms</span>`
                     }
                 }
-                
-                displayelement.innerHTML = 
-                 "<div class='container_graph'><canvas class='graph' id='Memory'></canvas>"
-                + "<canvas class='graph2' id='Player Count'></canvas></div>"    ;           
+                  
                 document.getElementById('room').innerHTML = roomtext;
                 document.getElementById('server-ping').innerHTML = pingtext;
                 document.getElementById('server-uptime').innerHTML = formattedTime;
                 document.getElementById('player-count').innerHTML = playercount;
                 document.getElementById('memory-usage').innerHTML = Usage + 'mb';
-
-                new Chart(document.getElementById("Memory"), {
-                type: 'line',
-                data: {
-                    labels: time,
-                    datasets: [{ 
-                        data: usagehistory,
-                        label: "Memory Usage",
-                        borderColor: "#00ffff",
-                        fill: false
-                    }
-                    ]
-                },
-                options: {
-                    responsive: false,
-                    maintainAspectRatio: true,
-                    animation: {
-        duration: 0
-        
-    },
-                    title: {
-                    display: true,
-                    text: 'Server Stats'
-                    },
-                }
-                });
-                new Chart(document.getElementById("Player Count"), {
-                type: 'line',
-                data: {
-                    labels: time,
-                    datasets: [
-                    {
-                        data: playerhistory,
-                        label: "Player count",
-                        borderColor: "#ff0000",
-                        fill: false
-                    }
-                    ]
-                },
-                options: {
-                    responsive: false,
-                    maintainAspectRatio: true,
-                    animation: {
-        duration: 0
-    },
-                    title: {
-                    display: true,
-                    text: 'Server Stats'
-                    },
-                }
-                });
-
-                i++;
             });
+
+window.addEventListener('beforeunload', () => {
+  socket.close();
+});
+
