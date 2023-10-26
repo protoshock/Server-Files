@@ -1,14 +1,15 @@
-const fastify = require('fastify')({ logger: true });
-const httpServer = fastify.server;
-const { Server } = require('socket.io')
-const { v4: uuidv4 } = require('uuid');
-const { gzip, ungzip } = require('node-gzip');
-const path = require('node:path');
-const express = require('express');
-const { uptime } = require('process');
-const { totalmem, freemem } = require('node:os');
+import { createServer } from 'node:http';
+import { Server } from 'socket.io';
+import path from 'node:path';
+import app from 'express';
+import { uptime } from 'node:process';
+import { totalmem, freemem } from 'node:os';
+import { nanoid } from 'nanoid';
+import pkg from 'node-gzip';
+const { gzip, ungzip } = pkg;
+const server = createServer(app);
 try {
-// Game Server
+
 let playerCount = 0;
 const serverData = {
     players: new Map(),
@@ -16,7 +17,7 @@ const serverData = {
 }
 
 function createId() {
-    return uuidv4();
+    return nanoid();
 }
 
 function getPlayerBySocket(ws) {
@@ -38,11 +39,9 @@ function getPlayersInRoom(roomId) {
 
 function joinRoom(ws, roomId, _gameversion) {
   const player = getPlayerBySocket(ws);
-  console.log(player)
+  if (player && player.roomId) return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
   const room = serverData.rooms.get(roomId);
-  if (player && player.roomId) return console.log('Player is already in a room:', player);
-  if (!room) return console.log('Room not found: ' + roomId);
-
+  if (!room) return;
   if (room.gameversion != _gameversion) return;
   const newPlayer = {
     id: createId(),
@@ -52,15 +51,17 @@ function joinRoom(ws, roomId, _gameversion) {
   };
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
+  room.playerCount++;
   playerCount++
-  console.log(newPlayer.id + " joined room: " + newPlayer.roomId);
-  console.log("Player count: " + playerCount);
+  console.log(`[Server] Player ${newPlayer.id} joined the room ${newPlayer.roomId}`)
+  console.log(`[Server] Room ${roomId}'s Player Count: ${room.playerCount}`)
+  console.log(`[Server] Global Player Count: ${playerCount}`);
   broadcastRoomInfo(ws);
 }
 
 async function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   const player = getPlayerBySocket(ws);
-  if (player && player.roomId) return console.log('Player is already in a room:', player);
+  if (player && player.roomId) return console.log(`[Server] Player ${player.id} is already in a room.`);
   const room = {
     id: createId(),
     maxplayers: max,
@@ -69,6 +70,7 @@ async function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
     name: roomName,
     gameversion: _gameversion,
     players: new Map(),
+    playerCount: '0'
   };
   serverData.rooms.set(room.id, room);
   joinRoom(ws, room.id, _gameversion);
@@ -76,14 +78,17 @@ async function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   
 function removePlayer(ws) {
   const player = getPlayerBySocket(ws);
-  const roomId = player.roomId;
-  const room = serverData.rooms.get(roomId);
-  if (!player) return;
+  if (player == null) return;
+  const room = serverData.rooms.get(player.roomId);
   if (room) {
     room.players.delete(player.id);
+    room.playerCount--;
     playerCount--;
-    if (room.players.size > 0) {
-      serverData.rooms.delete(roomId);
+    console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`)
+    console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`)
+    console.log(`[Server] Global Player Count: ${playerCount}`);
+    if (room.players.size === 0) {
+      serverData.rooms.delete(room.id);
     }
   }
   serverData.players.delete(player.id);
@@ -91,33 +96,35 @@ function removePlayer(ws) {
   
 setInterval(function(){
   global.gc();
-  console.log('GC done')
 }, 1000*30);
 
-function broadcastRoomInfo(ws) {
-  const player = getPlayerBySocket(ws)
-  for (const [roomId, room] of serverData.rooms) {
-    const playerIds = Array.from(room.players.keys()).map(id => ({
-      playerId: id,
-      local: id === player.id,
-      roomId: roomId,
-    }));
-    const json = JSON.stringify({
-      action: 'roominfo',
-      playerIds: playerIds,
-      scene: room.scene,
-      scenepath: room.scenepath,
-      gameversion: room.gameversion,
-      id: createId(),
-    });
-    SendMessage(player.socket, json);
+async function broadcastRoomInfo() {
+  for (const [_, player] of serverData.players.entries()) {
+    if (player == null) return;
+    const room = serverData.rooms.get(player.roomId);
+    if (room) {
+      const playerIds = Array.from(room.players.keys()).map((id) => ({
+        playerId: id,
+        local: id === player.id,
+        roomId: room.id
+      }));
+      var json = JSON.stringify({
+        action: 'roominfo',
+        playerIds: playerIds,
+        scene: room.scene,
+        scenepath: room.scenepath,
+        gameversion: room.gameversion,
+        id: createId()
+      });
+      SendMessage(player.socket, json);
+    }
   }
 }
 
 async function handleRPC(ws, data) {
   var player = getPlayerBySocket(ws);
-  var players = getPlayersInRoom(player.roomId);
   if (player == null) return;
+  var players = getPlayersInRoom(player.roomId);
   for (const [_, p] of players.entries()) {
     var parsedData = JSON.parse(data);
     const _data = JSON.stringify({
@@ -160,49 +167,48 @@ function convertSecondsToUnits(seconds) {
 }
 
 async function roomList(ws, amount, emptyonly) {
-    const roomsToSend = [];
-  
-    serverData.rooms.forEach((room) => {
-      if (roomsToSend.length >= amount) return;
-  
-      if (room.players.size <= room.maxplayers || !emptyonly) {
-        roomsToSend.push({
-          roomName: room.name,
-          roomId: room.id,
-          roomversion: room.gameversion,
-          playercount: room.players.size,
-        });
-      }
+  var count = 0;
+  for (const [_, room] of serverData.rooms.entries()) {
+    if (count > amount) {
+      break;
+    }
+    const _data = JSON.stringify({
+      action: "roomlist_roominfo",
+      roomName: room.name,
+      roomId: room.id,
+      roomversion: room.gameversion,
+      playercount: room.players.size
     });
-  
-    SendMessage(ws, JSON.stringify({ action: "roomlist_roominfo", rooms: roomsToSend }));
+    if (room.players.size <= room.maxplayers || !emptyonly) {
+      SendMessage(ws, _data);
+      count++;
+    }
+  }
 }
+
   
 async function getCurrentPlayers(ws) {
-    const player = getPlayerBySocket(ws);
-  
-    if (!player) return;
-  
-    const room = serverData.rooms.get(player.roomId);
-  
-    if (room) {
-      const playerIds = Array.from(room.players.keys()).map(id => ({
-        playerId: id,
-        local: id === player.id,
-        roomId: room.id,
-      }));
-  
-      const jsonData = {
-        action: 'currentplayers',
-        playerIds,
-        scene: room.scene,
-        scenepath: room.scenepath,
-        gameversion: room.gameversion,
-        id: createId(),
-      };
-  
-      SendMessage(player.socket, JSON.stringify(jsonData));
-    }
+  const player = getPlayerBySocket(ws);
+
+  if (player == null) return;
+  const room = serverData.rooms.get(player.roomId);
+
+  if (room) {
+    const playerIds = Array.from(room.players.keys()).map((id) => ({
+      playerId: id,
+      local: id === player.id,
+      roomId: room.id
+    }));
+    var json = JSON.stringify({
+      action: 'currentplayers',
+      playerIds: playerIds,
+      scene: room.scene,
+      scenepath: room.scenepath,
+      gameversion: room.gameversion,
+      id: createId()
+    });
+    SendMessage(player.socket, json);
+  }
 }
 
 function handleAction(ws, data) {
@@ -245,10 +251,8 @@ async function sendBundledCompressedMessages() {
       console.log(getPlayerBySocket(socket).id + " recieved: " + messages.length.toString() + " from buffer"); 
     }*/
     const bundledMessage = messages.join('\n');
-
     try {
       var compressedData = await gzip(bundledMessage);
-
       socket.emit('clientmessage', compressedData);
     } catch (error) {
       console.error("Error compressing and sending message:", error);
@@ -257,7 +261,7 @@ async function sendBundledCompressedMessages() {
   MessagesToSend.clear();
 }
 
-const wss = new Server(httpServer, {
+const wss = new Server(server, {
     transports: ['websocket', 'polling'],
     maxHttpBufferSize: 10e8,
     pingTimeout: 60000
@@ -307,28 +311,16 @@ const MessagesToSend = new Map();
 
 setInterval(sendBundledCompressedMessages, 1000 / 30);
 
-
-
 wss.on('connection', (ws) => {
   ws.on('message', async (message) => {
-    const decompressedmessage = await ungzip(message); // Assuming ungzip is an asynchronous function
-
-    // Convert the array of bytes to a Buffer
+    const decompressedmessage = await ungzip(message);
     const buffer = Buffer.from(decompressedmessage);
-
     const messagelist = buffer.toString('utf8').split("\n");
     (messagelist).forEach(element => {
-      try {
         const data = JSON.parse(element);
-
-        // Handle actions using a routing system
         handleAction(ws, data);
-      } catch {
-
-      }
     });
   });
-
 
   ws.on("ping", (timestamp) => {
     ws.volatile.emit("pong", timestamp);
@@ -340,12 +332,12 @@ wss.on('connection', (ws) => {
 
   ws.on('webmessage', () => {
     connectedWebClients.set(ws, ws);
-    console.log("web client connected");
+    console.log("[Server] Web Client Connected");
   });
   ws.on('disconnect', () => {
     if (connectedWebClients.has(ws)) {
       connectedWebClients.delete(ws);
-      console.log("web client removed");
+      console.log("[Server] Web Client Removed");
     } else {
       removePlayer(ws);
     }
@@ -355,10 +347,6 @@ wss.on('connection', (ws) => {
   console.log(err)
 }
 const port = 8880;
-fastify.listen({ port: port }, (err, address) => {
-  if (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
-  console.log(`Server is listening on ${address}`);
+server.listen(port, () => {
+  console.log(`[Server] Listening on port ${port}`);
 });

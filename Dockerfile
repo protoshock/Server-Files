@@ -6,4 +6,4 @@ RUN npm install
 # RUN npm ci --omit=dev
 COPY . .
 EXPOSE 8880
-CMD [ "node", "--expose-gc", "rewrite.js" ]
+CMD [ "node", "--expose-gc", "rewrite.mjs" ]
