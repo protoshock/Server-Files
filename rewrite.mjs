@@ -1,13 +1,31 @@
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import path from 'node:path';
-import app from 'express';
+import express from 'express';
 import { uptime } from 'node:process';
 import { totalmem, freemem } from 'node:os';
 import crypto from "node:crypto";
 import pkg from 'node-gzip';
+import fs from 'fs';
 const { gzip, ungzip } = pkg;
+const app = express();
 const server = createServer(app);
+app.use('/public', express.static('public'));
+app.get('/', (req, res) => {
+  let page = fs.readFileSync('./index.html', { encoding: 'utf-8' })
+  res.send(page);
+})
+
+app.get('/:roomId', (req, res) => {
+  let roomId = req.params.roomId;
+  const room = serverData.rooms.get(roomId);
+  if(!room) return res.redirect('/');
+  let page = fs.readFileSync('./room.html', { encoding: 'utf-8' })
+  page = page.replace(/{room-name}/g, room.name)
+  page = page.replace(/{room-count}/g, room.playerCount)
+  page = page.replace(/{room-maxcount}/g, room.maxplayers)
+  page = page.replace(/{room-version}/g, room.gameversion)
+  res.send(page);
+})
 
 let playerCount = 0;
 const serverData = {
@@ -300,7 +318,7 @@ wss.on('connection', (ws) => {
               roomslistid.push({
                   RoomID: room.id,
                   RoomName: room.name,
-                  RoomPlayerCount: room.players.size,
+                  RoomPlayerCount: room.playerCount,
                   RoomPlayerMax: room.maxplayers,
                   RoomGameVersion: room.gameversion,
               });

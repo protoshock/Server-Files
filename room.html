@@ -16,15 +16,10 @@
         <nav class="navbar navbar-color-on-scroll navbar-transparent    fixed-top  navbar-expand-lg "  color-on-scroll="100"  id="sectionsNav">
             <div class="container">
                 <div class="navbar-translate">
-                    <a class="navbar-brand" href="https://demos.creative-tim.com/material-kit/index.html" target="_blank">PROTOSHOCK</a>
+                    <a class="navbar-brand" href="/">PROTOSHOCK</a>
                 </div>
                 <div class="collapse navbar-collapse">
                     <ul class="navbar-nav ml-auto">
-                  <li class="nav-item">
-                    <a class="nav-link" href="#rules">
-                      Rules
-                    </a>
-                  </li>
                     </ul>
                 </div>
             </div>
@@ -33,9 +28,8 @@
             <div class="container">
                 <div class="row">
               <div class="col-md-6">
-                <h1 class="title">PROTOSHOCK</h1>
-                        <h4>PROTOSHOCK is a multiplayer first-person shooter that combines the fast-paced action with advanced movement; Players take on the role of creatures known as protogens, and battle their way through a variety of maps and game modes to rip apart their enemies.</h4>
-                        <br>
+                <h1 class="title">{room-name}</h1>
+                        <br> 
                         <a href="https://discord.gg/2Ud86CKukp" class="btn btn-danger btn-raised btn-lg">Join The Discord</a>
               </div>
                 </div>
@@ -47,7 +41,7 @@
                     <div class="row">
                         <div class="col-md-8 ml-auto mr-auto">
                             <h2 class="title">Game Server Stats</h2>
-                            <h5 class="description">Below shows the game server stats on uptime, player count, memory usage and ping.</h5>
+                            <h5 class="description">Below shows the game server stats on playercount, max playercount and room's version.</h5>
                         </div>
                     </div>
         
@@ -56,42 +50,30 @@
                   <div class="col-md-4">
                     <div class="info">
                       <div class="icon icon-info">
-                        <h1 id="server-uptime" class="analytics-font">OwO</h1>
+                        <h1 id="server-uptime">{room-count}</h1>
                       </div>
-                      <h4 class="info-title">Uptime</h4>
+                      <h4 class="info-title">Room's Player Count</h4>
                     </div>
                   </div>
                   <div class="col-md-4">
                     <div class="info">
                       <div class="icon icon-success">
-                        <h1 class="analytics-font" id="player-count">OwO</h1>
+                        <h1 class="analytics-font">{room-maxcount}</h1>
                       </div>
-                      <h4 class="info-title">Player Count</h4>
+                      <h4 class="info-title">Room's Max Player Count</h4>
                     </div>
                   </div>
                   <div class="col-md-4">
                     <div class="info">
                       <div class="icon icon-danger">
-                        <h1 id="memory-usage" class="analytics-font">OwO</h1>
+                        <h1 class="analytics-font">{room-version}</h1>
                       </div>
-                      <h4 class="info-title">Memory Usage</h4>
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="info">
-                      <div class="icon icon-success">
-                        <h1 class="analytics-font" id="server-ping">OwO</h1>
-                      </div>
-                      <h4 class="info-title">Ping</h4>
+                      <h4 class="info-title">Room's Game Version</h4>
                     </div>
                   </div>
                         </div>
               </div>
                 </div>
-                <div id="room"></div>
-              <div id="graphs" class="section">
-                            <div id="display"></div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -108,6 +90,5 @@
       <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
       <script src="/public/index.js"></script>
-      <script src="/public/socket.js"></script>
       </body>
 </html>
