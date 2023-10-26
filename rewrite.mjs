@@ -4,11 +4,10 @@ import path from 'node:path';
 import app from 'express';
 import { uptime } from 'node:process';
 import { totalmem, freemem } from 'node:os';
-import { nanoid } from 'nanoid';
+import crypto from "node:crypto";
 import pkg from 'node-gzip';
 const { gzip, ungzip } = pkg;
 const server = createServer(app);
-try {
 
 let playerCount = 0;
 const serverData = {
@@ -17,7 +16,7 @@ const serverData = {
 }
 
 function createId() {
-    return nanoid();
+  return crypto.randomBytes(4).toString("hex");
 }
 
 function getPlayerBySocket(ws) {
@@ -186,7 +185,6 @@ async function roomList(ws, amount, emptyonly) {
   }
 }
 
-  
 async function getCurrentPlayers(ws) {
   const player = getPlayerBySocket(ws);
 
@@ -246,10 +244,6 @@ function SendMessage(ws, data) {
 
 async function sendBundledCompressedMessages() {
   for (const [socket, messages] of MessagesToSend) {
-    /*
-    if(getPlayerBySocket(socket) != null){
-      console.log(getPlayerBySocket(socket).id + " recieved: " + messages.length.toString() + " from buffer"); 
-    }*/
     const bundledMessage = messages.join('\n');
     try {
       var compressedData = await gzip(bundledMessage);
@@ -266,45 +260,6 @@ const wss = new Server(server, {
     maxHttpBufferSize: 10e8,
     pingTimeout: 60000
 });
-
-setInterval(() => {
-  if (connectedWebClients.size > 0) {
-      const roomslistid = [];
-      let count = 0;
-
-      for (const [_, room] of serverData.rooms) {
-          if (count > 25) {
-              break;
-          }
-          roomslistid.push({
-              RoomID: room.id,
-              RoomName: room.name,
-              RoomPlayerCount: room.players.size,
-              RoomPlayerMax: room.maxplayers,
-              RoomGameVersion: room.gameversion,
-          });
-          count++;
-      }
-
-      const totalMemoryInBytes = totalmem();
-      const totalMemoryInMB = (totalMemoryInBytes / (1024 ** 2)).toFixed(2);
-
-      const freeMemoryInBytes = freemem();
-      const freeMemoryInMB = (freeMemoryInBytes / (1024 ** 2)).toFixed(2);
-
-      const usedMemoryInMB = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
-
-      for (const client of connectedWebClients.values()) {
-          const data = {
-              rooms: roomslistid,
-              globalplayercount: playerCount,
-              uptime: convertSecondsToUnits(Math.round(uptime())),
-              usage: Math.round(usedMemoryInMB),
-          };
-          client.emit("webmessageclient", data);
-      }
-  }
-}, 1000);
 
 const connectedWebClients = new Map();
 const MessagesToSend = new Map();
@@ -333,6 +288,44 @@ wss.on('connection', (ws) => {
   ws.on('webmessage', () => {
     connectedWebClients.set(ws, ws);
     console.log("[Server] Web Client Connected");
+    setInterval(() => {
+      if (connectedWebClients.size > 0) {
+          const roomslistid = [];
+          let count = 0;
+    
+          for (const [_, room] of serverData.rooms) {
+              if (count > 25) {
+                  break;
+              }
+              roomslistid.push({
+                  RoomID: room.id,
+                  RoomName: room.name,
+                  RoomPlayerCount: room.players.size,
+                  RoomPlayerMax: room.maxplayers,
+                  RoomGameVersion: room.gameversion,
+              });
+              count++;
+          }
+    
+          const totalMemoryInBytes = totalmem();
+          const totalMemoryInMB = (totalMemoryInBytes / (1024 ** 2)).toFixed(2);
+    
+          const freeMemoryInBytes = freemem();
+          const freeMemoryInMB = (freeMemoryInBytes / (1024 ** 2)).toFixed(2);
+    
+          const usedMemoryInMB = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
+    
+          for (const client of connectedWebClients.values()) {
+              const data = {
+                  rooms: roomslistid,
+                  globalplayercount: playerCount,
+                  uptime: convertSecondsToUnits(Math.round(uptime())),
+                  usage: Math.round(usedMemoryInMB),
+              };
+              client.emit("webmessageclient", data);
+          }
+      }
+    }, 1000);
   });
   ws.on('disconnect', () => {
     if (connectedWebClients.has(ws)) {
@@ -343,9 +336,7 @@ wss.on('connection', (ws) => {
     }
   });
 });
-} catch (err) {
-  console.log(err)
-}
+
 const port = 8880;
 server.listen(port, () => {
   console.log(`[Server] Listening on port ${port}`);
