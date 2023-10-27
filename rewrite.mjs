@@ -39,13 +39,18 @@ function createId() {
 }
 
 function getPlayerBySocket(ws) {
-  for (const [_, player] of serverData.players.entries()) {
+  let foundPlayer = null; // Initialize a variable to store the found player
+
+  serverData.players.forEach((player) => {
     if (player.socket === ws) {
-      return player;
+      foundPlayer = player;
     }
-  }
-  return null;
+  });
+
+  return foundPlayer; // Return the found player, or null if not found
 }
+
+
 
 function getPlayersInRoom(roomId) {
   const room = serverData.rooms.get(roomId);
@@ -117,7 +122,7 @@ setInterval(function () {
 }, 1000 * 30);
 
 async function broadcastRoomInfo() {
-  for (const [_, player] of serverData.players.entries()) {
+  serverData.players.forEach((player) => {
     if (player == null) return;
     const room = serverData.rooms.get(player.roomId);
     if (room) {
@@ -136,14 +141,15 @@ async function broadcastRoomInfo() {
       });
       SendMessage(player.socket, json);
     }
-  }
+  });
 }
 
 async function handleRPC(ws, data) {
   var player = getPlayerBySocket(ws);
   if (player == null) return;
   var players = getPlayersInRoom(player.roomId);
-  for (const [_, p] of players.entries()) {
+
+  players.forEach((p) => {
     var parsedData = JSON.parse(data);
     const _data = JSON.stringify({
       action: parsedData.action,
@@ -151,12 +157,15 @@ async function handleRPC(ws, data) {
       sender: player.id,
       id: createId(),
     });
+
     if (p.socket && p.socket.send) {
       SendMessage(p.socket, _data);
     }
-  }
+  });
+
   player.lastMessageTime = Date.now();
 }
+
 
 function convertSecondsToUnits(seconds) {
   const timeUnits = [
@@ -172,24 +181,26 @@ function convertSecondsToUnits(seconds) {
   let durationString = '';
   let remainingSeconds = seconds;
 
-  for (const { unit, seconds } of timeUnits) {
+  timeUnits.forEach(({ unit, seconds }) => {
     const value = Math.floor(remainingSeconds / seconds);
     remainingSeconds %= seconds;
 
     if (value > 0) {
       durationString += `${value} ${unit}${value !== 1 ? 's' : ''} `;
     }
-  }
+  });
 
   return durationString.trim();
 }
 
 async function roomList(ws, amount, emptyonly) {
   var count = 0;
-  for (const [_, room] of serverData.rooms.entries()) {
+
+  serverData.rooms.forEach((room) => {
     if (count > amount) {
-      break;
+      return;
     }
+
     const _data = JSON.stringify({
       action: 'roomlist_roominfo',
       roomName: room.name,
@@ -197,11 +208,12 @@ async function roomList(ws, amount, emptyonly) {
       roomversion: room.gameversion,
       playercount: room.players.size,
     });
+
     if (room.players.size <= room.maxplayers || !emptyonly) {
       SendMessage(ws, _data);
       count++;
     }
-  }
+  });
 }
 
 async function getCurrentPlayers(ws) {
@@ -262,7 +274,7 @@ function SendMessage(ws, data) {
 }
 
 async function sendBundledCompressedMessages() {
-  for (const [socket, messages] of MessagesToSend) {
+  MessagesToSend.forEach(async (messages, socket) => {
     const bundledMessage = messages.join('\n');
     try {
       var compressedData = await gzip(bundledMessage);
@@ -270,7 +282,8 @@ async function sendBundledCompressedMessages() {
     } catch (error) {
       console.error("Error compressing and sending message:", error);
     }
-  }
+  });
+
   MessagesToSend.clear();
 }
 
@@ -312,9 +325,9 @@ wss.on('connection', (ws) => {
         const roomslistid = [];
         let count = 0;
 
-        for (const [_, room] of serverData.rooms) {
+        serverData.rooms.forEach((room) => {
           if (count > 25) {
-            break;
+            return;
           }
           roomslistid.push({
             RoomID: room.id,
@@ -324,7 +337,7 @@ wss.on('connection', (ws) => {
             RoomGameVersion: room.gameversion,
           });
           count++;
-        }
+        });
 
         const totalMemoryInBytes = totalmem();
         const totalMemoryInMB = (totalMemoryInBytes / (1024 ** 2)).toFixed(2);
@@ -334,7 +347,7 @@ wss.on('connection', (ws) => {
 
         const usedMemoryInMB = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
 
-        for (const client of connectedWebClients.values()) {
+        connectedWebClients.forEach((client) => {
           const data = {
             rooms: roomslistid,
             globalplayercount: playerCount,
@@ -342,7 +355,7 @@ wss.on('connection', (ws) => {
             usage: Math.round(usedMemoryInMB),
           };
           client.emit("webmessageclient", data);
-        }
+        })
       }
     }, 1000);
   });
@@ -356,6 +369,7 @@ wss.on('connection', (ws) => {
     }
   });
 });
+
 
 const port = 8880;
 server.listen(port, () => {
