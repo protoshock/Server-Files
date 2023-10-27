@@ -16,3 +16,4 @@ services:
       - ./package-lock.json:/usr/src/app/package-lock.json
       - ./public:/usr/src/app/public
     working_dir: /usr/src/app
+    restart: always
