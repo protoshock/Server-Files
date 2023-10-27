@@ -1,9 +1,6 @@
 FROM node:18.18-alpine3.18
 WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm install
-# If you are building your code for production
-# RUN npm ci --omit=dev
-COPY . .
+RUN apk --no-cache add git
+COPY entrypoint.sh /usr/src/app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 8880
-CMD [ "node", "--expose-gc", "rewrite.mjs" ]
