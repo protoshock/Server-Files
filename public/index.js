@@ -1,4 +1,4 @@
-var big_image;
+let big_image;
 
 $(document).ready(function() {
   BrowserDetect.init();
@@ -105,7 +105,7 @@ materialKit = {
 
   initSliders: function() {
     // Sliders for demo purpose
-    var slider = document.getElementById('sliderRegular');
+    let slider = document.getElementById('sliderRegular');
 
     noUiSlider.create(slider, {
       start: 40,
@@ -116,7 +116,7 @@ materialKit = {
       }
     });
 
-    var slider2 = document.getElementById('sliderDouble');
+    let slider2 = document.getElementById('sliderDouble');
 
     noUiSlider.create(slider2, {
       start: [20, 60],
@@ -159,9 +159,9 @@ materialKit = {
 // leading edge, instead of the trailing.
 
 function debounce(func, wait, immediate) {
-  var timeout;
+  let timeout;
   return function() {
-    var context = this,
+    let context = this,
       args = arguments;
     clearTimeout(timeout);
     timeout = setTimeout(function() {
@@ -172,14 +172,14 @@ function debounce(func, wait, immediate) {
   };
 };
 
-var BrowserDetect = {
+let BrowserDetect = {
   init: function() {
     this.browser = this.searchString(this.dataBrowser) || "Other";
     this.version = this.searchVersion(navigator.userAgent) || this.searchVersion(navigator.appVersion) || "Unknown";
   },
   searchString: function(data) {
-    for (var i = 0; i < data.length; i++) {
-      var dataString = data[i].string;
+    for (let i = 0; i < data.length; i++) {
+      let dataString = data[i].string;
       this.versionSearchString = data[i].subString;
 
       if (dataString.indexOf(data[i].subString) !== -1) {
@@ -188,12 +188,12 @@ var BrowserDetect = {
     }
   },
   searchVersion: function(dataString) {
-    var index = dataString.indexOf(this.versionSearchString);
+    let index = dataString.indexOf(this.versionSearchString);
     if (index === -1) {
       return;
     }
 
-    var rv = dataString.indexOf("rv:");
+    let rv = dataString.indexOf("rv:");
     if (this.versionSearchString === "Trident" && rv !== -1) {
       return parseFloat(dataString.substring(rv + 3));
     } else {

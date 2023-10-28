@@ -1,14 +1,14 @@
 const socket = io();
             const displayelement = document.getElementById("display");
-            var i = 0;
-            var usagehistory = [0, 8000];
-            var playerhistory = [0, 5];
-            var time = [0,0];
-            var ping = 0;
+            let i = 0;
+            let usagehistory = [0, 8000];
+            let playerhistory = [0, 5];
+            let time = [0,0];
+            let ping = 0;
             socket.emit("webmessage");
             socket.on("pong", (timestampdata) =>{
-                var d = new Date();
-                var currentMilliseconds = d.getMilliseconds();
+                let d = new Date();
+                let currentMilliseconds = d.getMilliseconds();
                 ping = currentMilliseconds - timestampdata;
             });
             function formatTime(inputTime) {
@@ -88,8 +88,8 @@ const socket = io();
                 document.getElementById("Player Count").remove();
             }
             
-                var d = new Date();
-                var currentMilliseconds = d.getMilliseconds();
+                let d = new Date();
+                let currentMilliseconds = d.getMilliseconds();
                 socket.emit("ping", currentMilliseconds);
                 const rooms = data.rooms;
                 const playercount = data.globalplayercount;
@@ -108,7 +108,7 @@ const socket = io();
                     usagehistory[1] = 8000;
                     playerhistory[1] = 5;
                 }
-                var roomtext = "";
+                let roomtext = "";
                 rooms.forEach(room => {
                     roomtext = roomtext 
                     + `<div class='room'><a href="${room.RoomID}"><p class='room-text'> Room ID: ${room.RoomID}`
@@ -121,7 +121,7 @@ const socket = io();
                     roomtext = "<div class='room'><p class='room-text'>No rooms</p></div><br/></div>";
                 }
 
-                var pingtext = "";
+                let pingtext = "";
                 if(ping < 50){
                     pingtext = `<span class='good'>${ping}ms</span>`
                 } 
