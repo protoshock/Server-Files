@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import express from 'express';
 import pkg from 'node-gzip';
 const { gzip, ungzip } = pkg;
+let intervalReference;
 const app = express();
 const server = createServer(app);
 app.use('/public', express.static('public'));
@@ -59,6 +60,12 @@ function getPlayersInRoom(roomId) {
   return room.players;
 }
 
+function getPlayerCountInRoom(roomId) {
+  const room = serverData.rooms.get(roomId);
+  if (!room) return;
+  return room.playerCount;
+}
+
 function getTotalPlayerCount() {
   let totalPlayerCount = 0;
   serverData.rooms.forEach((room) => {
@@ -78,7 +85,7 @@ function joinRoom(ws, roomId, _gameversion) {
     socket: ws,
     roomId: roomId,
     local: true,
-  };
+  }
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
   room.playerCount++;
@@ -102,6 +109,40 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   };
   serverData.rooms.set(room.id, room);
   joinRoom(ws, room.id, _gameversion);
+  if (serverData.rooms.size > 0) {
+    startInterval();
+  }
+}
+
+async function handleChatMessage(senderSocket, data) {
+  const { roomId, message } = data;
+  const sender = getPlayerBySocket(senderSocket);
+  
+  if (!sender || sender.roomId !== roomId) {
+    console.log('Error: Invalid sender or room ID mismatch.');
+    return;
+  }
+
+  const room = serverData.rooms.get(roomId);
+
+  if (!room) {
+    console.log('Error: Room not found.');
+    return;
+  }
+
+  const chatData = {
+    action: 'chat',
+    senderId: sender.id,
+    message,
+  };
+
+  const compressedChatData = await gzip(JSON.stringify(chatData));
+
+  room.players.forEach((player) => {
+    if (player.id !== sender.id) {
+      SendMessage(player.socket, compressedChatData); // Sending the compressed chat data
+    }
+  });
 }
 
 function removePlayer(ws) {
@@ -115,6 +156,7 @@ function removePlayer(ws) {
     console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
     if (room.players.size === 0) {
       serverData.rooms.delete(room.id);
+      clearInterval(intervalReference);
     }
   }
   serverData.players.delete(player.id);
@@ -278,7 +320,13 @@ async function sendBundledCompressedMessages() {
 const connectedWebClients = new Map();
 const MessagesToSend = new Map();
 
-setInterval(sendBundledCompressedMessages, 1000 / 30);
+function startInterval() {
+  intervalReference = setInterval(sendBundledCompressedMessages, 1000 / 30);
+}
+
+if (serverData.rooms.size > 0) {
+  startInterval();
+}
 
 const wss = new Server(server, {
   transports: ['websocket', 'polling'],
@@ -291,24 +339,21 @@ wss.on('connection', (ws) => {
     const decompressedmessage = await ungzip(message);
     const buffer = Buffer.from(decompressedmessage);
     const messagelist = buffer.toString('utf8').split('\n');
-  
+    if (!Array.isArray(messagelist) || !messagelist.every(msg => typeof msg === 'string')) return;
+    if (messagelist.some(msg => msg.trim() === '')) return console.log('oopsie');
     messagelist.forEach((element) => {
       try {
         const data = JSON.parse(element);
         handleAction(ws, data);
       } catch (error) {
+        console.log(message)
+        console.log(decompressedmessage)
+        console.log(messagelist)
+        console.log(element)
         console.error('Error parsing JSON:', error);
-        const logMessage = `Error parsing JSON: ${error}\nError Message: ${element}\n\n`;
-
-        fs.appendFile('error_log.txt', logMessage, (err) => {
-          if (err) {
-            console.error('Error writing to log file:', err);
-          }
-        });
       }
     });
   });
-  
 
   ws.on('ping', (timestamp) => {
     ws.volatile.emit('pong', timestamp);
@@ -318,7 +363,7 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('webmessage', () => {
+  ws.on('webmessage', async (message) => {
     connectedWebClients.set(ws, ws);
     console.log("[Server] Web Client Connected");
     setInterval(() => {
