@@ -60,12 +60,6 @@ function getPlayersInRoom(roomId) {
   return room.players;
 }
 
-function getPlayerCountInRoom(roomId) {
-  const room = serverData.rooms.get(roomId);
-  if (!room) return;
-  return room.playerCount;
-}
-
 function getTotalPlayerCount() {
   let totalPlayerCount = 0;
   serverData.rooms.forEach((room) => {
@@ -112,37 +106,6 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   if (serverData.rooms.size > 0) {
     startInterval();
   }
-}
-
-async function handleChatMessage(senderSocket, data) {
-  const { roomId, message } = data;
-  const sender = getPlayerBySocket(senderSocket);
-  
-  if (!sender || sender.roomId !== roomId) {
-    console.log('Error: Invalid sender or room ID mismatch.');
-    return;
-  }
-
-  const room = serverData.rooms.get(roomId);
-
-  if (!room) {
-    console.log('Error: Room not found.');
-    return;
-  }
-
-  const chatData = {
-    action: 'chat',
-    senderId: sender.id,
-    message,
-  };
-
-  const compressedChatData = await gzip(JSON.stringify(chatData));
-
-  room.players.forEach((player) => {
-    if (player.id !== sender.id) {
-      SendMessage(player.socket, compressedChatData); // Sending the compressed chat data
-    }
-  });
 }
 
 function removePlayer(ws) {
@@ -234,7 +197,7 @@ function convertSecondsToUnits(seconds) {
   return durationString.trim();
 }
 
-function roomList(ws, amount, emptyonly) {
+function roomList(ws, emptyonly) {
   if(serverData.rooms.size < 0) return;
   serverData.rooms.forEach((room) => {
     const _data = JSON.stringify({
@@ -339,8 +302,7 @@ wss.on('connection', (ws) => {
     const decompressedmessage = await ungzip(message);
     const buffer = Buffer.from(decompressedmessage);
     const messagelist = buffer.toString('utf8').split('\n');
-    if (!Array.isArray(messagelist) || !messagelist.every(msg => typeof msg === 'string')) return;
-    if (messagelist.some(msg => msg.trim() === '')) return console.log('oopsie');
+    if (messagelist.some(msg => msg.trim() === '')) return;
     messagelist.forEach((element) => {
       try {
         const data = JSON.parse(element);
