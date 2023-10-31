@@ -35,7 +35,7 @@ const serverData = {
 };
 
 function createId() {
-  newId = randomBytes(4).toString('hex');
+  randomBytes(4).toString('hex');
 }
 
 function getPlayerBySocket(ws) {
