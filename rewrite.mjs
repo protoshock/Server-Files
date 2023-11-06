@@ -90,7 +90,9 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
     players: new Map(),
     playerCount: '0',
   };
-  if (serverData.rooms.size < 0) return startInterval();
+  if (!serverData.rooms.size > 0) { 
+    startInterval() 
+  };
   serverData.rooms.set(room.id, room);
   joinRoom(ws, room.id, _gameversion);
 }
