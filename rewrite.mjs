@@ -3,29 +3,26 @@ import { Server } from 'socket.io';
 import { uptime } from 'node:process';
 import { totalmem, freemem } from 'node:os';
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, createWriteStream } from 'node:fs';
 import express from 'express';
 import pkg from 'node-gzip';
+import { format } from 'node:util';
 const { gzip, ungzip } = pkg;
 let intervalReference;
 const app = express();
 const server = createServer(app);
+var log_file = createWriteStream('./debug.log', {flags : 'w'});
+var log_stdout = process.stdout;
+
+console.log = function(log) { //
+  log_file.write(format(log) + '\n');
+  log_stdout.write(format(log) + '\n');
+};
+
 app.use('/public', express.static('public'));
 
 app.get('/', (req, res) => {
   let page = readFileSync('./index.html', { encoding: 'utf-8' });
-  res.send(page);
-});
-
-app.get('/:roomId', (req, res) => {
-  let roomId = req.params.roomId;
-  const room = serverData.rooms.get(roomId);
-  if (!room) return res.redirect('/');
-  let page = readFileSync('./room.html', { encoding: 'utf-8' });
-  page = page.replace(/{room-name}/g, room.name);
-  page = page.replace(/{room-count}/g, room.playerCount);
-  page = page.replace(/{room-maxcount}/g, room.maxplayers);
-  page = page.replace(/{room-version}/g, room.gameversion);
   res.send(page);
 });
 
@@ -35,7 +32,11 @@ const serverData = {
 };
 
 function createId() {
-  randomBytes(4).toString('hex');
+  let newId;
+  do {
+    newId = randomBytes(4).toString('hex');
+  } while (serverData.players.has(newId));
+  return newId;
 }
 
 function getPlayerBySocket(ws) {
@@ -75,13 +76,13 @@ function joinRoom(ws, roomId, _gameversion) {
     socket: ws,
     roomId: roomId,
     local: true,
-  }
+  };
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
   room.playerCount++;
   console.log(`[Server] Player ${newPlayer.id} joined the room ${newPlayer.roomId}`);
   console.log(`[Server] Room ${roomId}'s Player Count: ${room.playerCount}`);
-  broadcastRoomInfo(ws);
+  broadcastRoomInfo();
 }
 
 function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
@@ -148,8 +149,8 @@ function broadcastRoomInfo() {
 }
 
 function handleRPC(ws, data) {
-  let player = getPlayerBySocket(ws);
-  if (player == null) return;
+  let player = getPlayerBySocket(ws)
+  if (player === null) return;
   let players = getPlayersInRoom(player.roomId);
   players.forEach((p) => {
     let parsedData = JSON.parse(data);
@@ -177,23 +178,19 @@ function convertSecondsToUnits(seconds) {
     { unit: 'minute', seconds: 60 },
     { unit: 'second', seconds: 1 },
   ];
-
   let durationString = '';
   let remainingSeconds = seconds;
-
   timeUnits.forEach(({ unit, seconds }) => {
     const value = Math.floor(remainingSeconds / seconds);
     remainingSeconds %= seconds;
-
     if (value > 0) {
       durationString += `${value} ${unit}${value !== 1 ? 's' : ''} `;
     }
   });
-
   return durationString.trim();
 }
 
-function roomList(ws, emptyonly) {
+function roomList(ws, amount, emptyonly) {
   if(serverData.rooms.size < 0) return;
   serverData.rooms.forEach((room) => {
     const _data = JSON.stringify({
@@ -298,20 +295,17 @@ wss.on('connection', (ws) => {
     const decompressedmessage = await ungzip(message);
     const buffer = Buffer.from(decompressedmessage);
     const messagelist = buffer.toString('utf8').split('\n');
-    if (messagelist.some(msg => msg.trim() === '')) return;
-    messagelist.forEach((element) => {
+    const filteredMessageList = messagelist.filter(msg => msg.trim() !== '');
+    filteredMessageList.forEach((element) => {
       try {
         const data = JSON.parse(element);
         handleAction(ws, data);
-      } catch (error) {
-        console.log(message)
-        console.log(decompressedmessage)
-        console.log(messagelist)
-        console.log(element)
-        console.error('Error parsing JSON:', error);
+      } catch (err) {
+        return;
       }
     });
   });
+  
 
   ws.on('ping', (timestamp) => {
     ws.volatile.emit('pong', timestamp);
@@ -321,18 +315,16 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('webmessage', async (message) => {
+  ws.on('webmessage', () => {
     connectedWebClients.set(ws, ws);
     console.log("[Server] Web Client Connected");
     setInterval(() => {
       if (connectedWebClients.size > 0) {
         const roomslistid = [];
-        let count = 0;
-
+        const totalMemoryInMB = (totalmem() / (1024 ** 2)).toFixed(2);
+        const freeMemoryInMB = (freemem() / (1024 ** 2)).toFixed(2);
+        const memoryUsed = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
         serverData.rooms.forEach((room) => {
-          if (count > 25) {
-            return;
-          }
           roomslistid.push({
             RoomID: room.id,
             RoomName: room.name,
@@ -340,16 +332,7 @@ wss.on('connection', (ws) => {
             RoomPlayerMax: room.maxplayers,
             RoomGameVersion: room.gameversion,
           });
-          count++;
         });
-
-        const totalMemoryInBytes = totalmem();
-        const totalMemoryInMB = (totalMemoryInBytes / (1024 ** 2)).toFixed(2);
-
-        const freeMemoryInBytes = freemem();
-        const freeMemoryInMB = (freeMemoryInBytes / (1024 ** 2)).toFixed(2);
-
-        const usedMemoryInMB = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
 
         connectedWebClients.forEach((client) => {
           const totalPlayerCount = getTotalPlayerCount();
@@ -357,7 +340,7 @@ wss.on('connection', (ws) => {
             rooms: roomslistid,
             globalplayercount: totalPlayerCount,
             uptime: convertSecondsToUnits(Math.round(uptime())),
-            usage: Math.round(usedMemoryInMB),
+            usage: Math.round(memoryUsed),
           };
           client.emit("webmessageclient", data);
         })
