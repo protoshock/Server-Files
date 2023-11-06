@@ -6,18 +6,10 @@ import { randomBytes } from 'node:crypto';
 import { readFileSync, createWriteStream } from 'node:fs';
 import express from 'express';
 import pkg from 'node-gzip';
-import { format } from 'node:util';
 const { gzip, ungzip } = pkg;
-let intervalReference;
 const app = express();
 const server = createServer(app);
-var log_file = createWriteStream('./debug.log', {flags : 'w'});
-var log_stdout = process.stdout;
-
-console.log = function(log) { //
-  log_file.write(format(log) + '\n');
-  log_stdout.write(format(log) + '\n');
-};
+let intervalReference;
 
 app.use('/public', express.static('public'));
 
@@ -98,11 +90,9 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
     players: new Map(),
     playerCount: '0',
   };
+  if (serverData.rooms.size < 0) return startInterval();
   serverData.rooms.set(room.id, room);
   joinRoom(ws, room.id, _gameversion);
-  if (serverData.rooms.size > 0) {
-    startInterval();
-  }
 }
 
 function removePlayer(ws) {
@@ -200,9 +190,7 @@ function roomList(ws, amount, emptyonly) {
       roomversion: room.gameversion,
       playercount: room.players.size,
     });
-    if (room.players.size <= room.maxplayers || !emptyonly) {
-      SendMessage(ws, _data);
-    }
+    if (room.players.size <= room.maxplayers || !emptyonly) return SendMessage(ws, _data);
   });
 }
 
@@ -280,10 +268,6 @@ function startInterval() {
   intervalReference = setInterval(sendBundledCompressedMessages, 1000 / 30);
 }
 
-if (serverData.rooms.size > 0) {
-  startInterval();
-}
-
 const wss = new Server(server, {
   transports: ['websocket', 'polling'],
   maxHttpBufferSize: 10e8,
@@ -335,10 +319,9 @@ wss.on('connection', (ws) => {
         });
 
         connectedWebClients.forEach((client) => {
-          const totalPlayerCount = getTotalPlayerCount();
           const data = {
             rooms: roomslistid,
-            globalplayercount: totalPlayerCount,
+            globalplayercount: getTotalPlayerCount(),
             uptime: convertSecondsToUnits(Math.round(uptime())),
             usage: Math.round(memoryUsed),
           };
