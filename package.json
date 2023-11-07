@@ -1,6 +1,6 @@
 {
   "name": "protoshock-server",
-  "description": "This respository contains the files to run a Protoshock server.",
+  "description": "This respository contains the files to run a Protoshock server instance.",
   "version": "1.0.0",
   "main": "index.mjs",
   "scripts": {

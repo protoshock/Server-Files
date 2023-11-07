@@ -36,11 +36,11 @@ const serverData = {
 };
 
 function createId() {
-  let newId;
+  let id;
   do {
     newId = randomBytes(4).toString('hex');
-  } while (serverData.players.has(newId));
-  return newId;
+  } while (serverData.players.has(id));
+  return id;
 }
 
 function getPlayerBySocket(ws) {

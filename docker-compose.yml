@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: protoshock-server
-    container_name: protoshock-server
+    container_name: Protoshock-Server
     ports:
       - "8880:8880"
     restart: always

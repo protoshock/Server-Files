@@ -7,7 +7,7 @@ This respository contains the files to run a Protoshock server.
 - npm i express
 
 ## When trying to start run like this
-```js
+```
 node --expose-gc index.mjs
 ```
 # Info

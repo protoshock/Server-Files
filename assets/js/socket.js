@@ -133,7 +133,6 @@ const socket = io();
                         pingtext = `<span class='bad'>${ping}ms</span>`
                     }
                 }
-                  
                 document.getElementById('room').innerHTML = roomtext;
                 document.getElementById('server-ping').innerHTML = pingtext;
                 document.getElementById('server-uptime').innerHTML = formattedTime;

@@ -232,6 +232,5 @@ let BrowserDetect = {
       identity: "Opera"
     }
   ]
-
 };
 
