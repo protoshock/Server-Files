@@ -3,7 +3,7 @@ import { Server } from 'socket.io';
 import { uptime } from 'node:process';
 import { totalmem, freemem } from 'node:os';
 import { randomBytes } from 'node:crypto';
-import { readFileSync, createWriteStream } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import express from 'express';
 import pkg from 'node-gzip';
 const { gzip, ungzip } = pkg;
@@ -11,12 +11,24 @@ const app = express();
 const server = createServer(app);
 let intervalReference;
 
-app.use('/public', express.static('public'));
+app.use('/assets', express.static('assets'));
 
 app.get('/', (req, res) => {
-  let page = readFileSync('./index.html', { encoding: 'utf-8' });
+  let page = readFileSync('./assets/html/index.html', { encoding: 'utf-8' });
   res.send(page);
 });
+
+app.get('/:roomId', (req, res) => {
+  let roomId = req.params.roomId;
+  const room = serverData.rooms.get(roomId);
+  if(!room) return res.redirect('/');
+  let page = readFileSync('./assets/html/room.html', { encoding: 'utf-8' })
+  page = page.replace(/{room-name}/g, room.name)
+  page = page.replace(/{room-count}/g, room.playerCount)
+  page = page.replace(/{room-maxcount}/g, room.maxplayers)
+  page = page.replace(/{room-version}/g, room.gameversion)
+  res.send(page);
+})
 
 const serverData = {
   players: new Map(),

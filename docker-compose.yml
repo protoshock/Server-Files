@@ -1,19 +1,11 @@
 version: '3'
 services:
-  protoshock-server-2:
+  protoshock-server:
     build:
       context: .
       dockerfile: Dockerfile
-    image: protoshock-server-2
-    container_name: protoshock-server-2
+    image: protoshock-server
+    container_name: protoshock-server
     ports:
-      - "8840:8880"
-    volumes:
-      - ./rewrite.mjs:/usr/src/app/rewrite.mjs
-      - ./index.html:/usr/src/app/index.html
-      - ./room.html:/usr/src/app/room.html
-      - ./package.json:/usr/src/app/package.json
-      - ./package-lock.json:/usr/src/app/package-lock.json
-      - ./public:/usr/src/app/public
-    working_dir: /usr/src/app
+      - "8880:8880"
     restart: always
