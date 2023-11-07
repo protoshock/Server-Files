@@ -109,38 +109,109 @@ const socket = io();
                     playerhistory[1] = 5;
                 }
                 let roomtext = "";
+                let pingtext = "";
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
                 rooms.forEach(room => {
                     roomtext = roomtext 
-                    + `<div class='room'><a href="${room.RoomID}"><p class='room-text'> Room ID: ${room.RoomID}`
+                    + `<div class='room'><a href="${room.RoomID}"><p class='room-text' style="color: white"> Room ID: ${room.RoomID}`
                     + ` | Version: ${room.RoomGameVersion}`
                     + ` | Room Name: ${room.RoomName}`
                     + ` | Player Count: ${room.RoomPlayerCount}/${room.RoomPlayerMax}`
                     + `</p></a></div>`;
                 });
                 if(rooms.length == 0){
-                    roomtext = "<div class='room'><p class='room-text'>No rooms</p></div><br/></div>";
+                    roomtext = "<div class='room'><p class='room-text' style='color: white'>No rooms</p></div><br/></div>";
                 }
+              } else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)  {
+                rooms.forEach(room => {
+                  roomtext = roomtext 
+                  + `<div class='room'><a href="${room.RoomID}"><p class='room-text' style="color: black"> Room ID: ${room.RoomID}`
+                  + ` | Version: ${room.RoomGameVersion}`
+                  + ` | Room Name: ${room.RoomName}`
+                  + ` | Player Count: ${room.RoomPlayerCount}/${room.RoomPlayerMax}`
+                  + `</p></a></div>`;
+              });
+              if(rooms.length == 0){
+                  roomtext = "<div class='room'><p class='room-text' style='color: black'>No rooms</p></div><br/></div>";
+              }
+              } else {
+                rooms.forEach(room => {
+                  roomtext = roomtext 
+                  + `<div class='room'><a href="${room.RoomID}"><p class='room-text' style="color: white"> Room ID: ${room.RoomID}`
+                  + ` | Version: ${room.RoomGameVersion}`
+                  + ` | Room Name: ${room.RoomName}`
+                  + ` | Player Count: ${room.RoomPlayerCount}/${room.RoomPlayerMax}`
+                  + `</p></a></div>`;
+              });
+              if(rooms.length == 0){
+                  roomtext = "<div class='room'><p class='room-text' style='color: white'>No rooms</p></div><br/></div>";
+              }
+              }
 
-                let pingtext = "";
-                if(ping < 50){
-                    pingtext = `<span class='good'>${ping}ms</span>`
-                } 
-                else{
-                    if(ping > 50 && ping < 100){
-                        pingtext = `<span class='medium'>${ping}ms</span`
-                    }
-                    else{
-                        pingtext = `<span class='bad'>${ping}ms</span>`
-                    }
+              if(ping < 50){
+                pingtext = `<span class='good' style="color: green">${ping}ms</span>`
+            } 
+            else{
+                if(ping > 50 && ping < 100){
+                    pingtext = `<span class='medium' style="color: yellow">${ping}ms</span`
                 }
-                document.getElementById('room').innerHTML = roomtext;
-                document.getElementById('server-ping').innerHTML = pingtext;
+                else{
+                    pingtext = `<span class='bad' style="color: red">${ping}ms</span>`
+                }
+            }
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                  document.getElementById('server-uptime').innerHTML = formattedTime;
+                  document.getElementById('player-count').innerHTML = playercount;
+                  document.getElementById('memory-usage').innerHTML = Usage + 'mb';
+                  document.getElementById('server-uptime').style.color = "white"
+                  document.getElementById('player-count').style.color = "white"
+                  document.getElementById('memory-usage').style.color = "white"
+                  document.getElementById('room').innerHTML = roomtext;
+                  document.getElementById('server-ping').innerHTML = pingtext;
+                } else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                  document.getElementById('room').innerHTML = roomtext;
+                  document.getElementById('server-ping').innerHTML = pingtext;
                 document.getElementById('server-uptime').innerHTML = formattedTime;
                 document.getElementById('player-count').innerHTML = playercount;
                 document.getElementById('memory-usage').innerHTML = Usage + 'mb';
+                } else {
+                  document.getElementById('server-uptime').innerHTML = formattedTime;
+                  document.getElementById('player-count').innerHTML = playercount;
+                  document.getElementById('memory-usage').innerHTML = Usage + 'mb';
+                  document.getElementById('server-uptime').style.color = "white"
+                  document.getElementById('player-count').style.color = "white"
+                  document.getElementById('memory-usage').style.color = "white"
+                  document.getElementById('room').innerHTML = roomtext;
+                  document.getElementById('server-ping').innerHTML = pingtext;
+                }
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                  const newColorScheme = event.matches ? "dark" : "light";
+                  if(newColorScheme === "dark") {
+                    document.getElementById('server-uptime').innerHTML = formattedTime;
+                    document.getElementById('player-count').innerHTML = playercount;
+                    document.getElementById('memory-usage').innerHTML = Usage + 'mb';
+                    document.getElementById('server-uptime').style.color = "white"
+                    document.getElementById('player-count').style.color = "white"
+                    document.getElementById('memory-usage').style.color = "white"
+                    document.getElementById('room').innerHTML = roomtext;
+                    document.getElementById('server-ping').innerHTML = pingtext;
+                  } else if(newColorScheme === 'light') {
+                    document.getElementById('room').innerHTML = roomtext;
+                    document.getElementById('server-ping').innerHTML = pingtext;
+                  document.getElementById('server-uptime').innerHTML = formattedTime;
+                  document.getElementById('player-count').innerHTML = playercount;
+                  document.getElementById('server-uptime').style.color = "#344767"
+                  document.getElementById('player-count').style.color = "#344767"
+                  document.getElementById('memory-usage').style.color = "#344767"
+                  document.getElementById('memory-usage').innerHTML = Usage + 'mb';
+                  }
+                });
             });
 
 window.addEventListener('beforeunload', () => {
   socket.close();
 });
 
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+  const newColorScheme = event.matches ? "dark" : "light";
+});

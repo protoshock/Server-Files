@@ -36,11 +36,11 @@ const serverData = {
 };
 
 function createId() {
-  let id;
+  let newId;
   do {
     newId = randomBytes(4).toString('hex');
-  } while (serverData.players.has(id));
-  return id;
+  } while (serverData.players.has(newId));
+  return newId;
 }
 
 function getPlayerBySocket(ws) {
@@ -53,6 +53,7 @@ function getPlayerBySocket(ws) {
   });
   return foundPlayer;
 }
+
 
 function getPlayersInRoom(roomId) {
   const room = serverData.rooms.get(roomId);

@@ -2,6 +2,8 @@ html * {
     -webkit-font-smoothing: antialiased;
 }
 
+
+
 .container h1 {
     font-size: 3.3125rem;
     line-height: 1.15em;
@@ -41,6 +43,30 @@ html * {
 .description {
     color: #999;
 }
+.dark-theme {
+    color: white;
+}
+@media (prefers-color-scheme: dark) {
+    .main {
+        background: #201c1c;
+        position: relative;
+        z-index: 3;
+    }
+    .main-background-color {
+        background-color:#302c34;
+    }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .main {
+        background: #fff;
+        position: relative;
+        z-index: 3;
+    }
+    .main-background-color {
+        background-color:#fff;
+    }
+  }
 
 .text-muted {
     color: #6c757d!important;
@@ -247,12 +273,6 @@ p {
     box-shadow: 0 16px 24px 2px rgba(0,0,0,.14), 0 6px 30px 5px rgba(0,0,0,.12), 0 8px 10px -5px rgba(0,0,0,.2);
 }
 
-.main {
-    background: #FFF;
-    position: relative;
-    z-index: 3;
-}
-
 .section {
     padding: 70px 0;
 }
@@ -282,7 +302,8 @@ p {
 .info .info-title {
     font-weight: 700;
     font-family: "Roboto Slab","Times New Roman",serif;
-    color: #3C4858;
+    color: #1f69ca;
+    /* #3C4858 */
     margin: 1.75rem 0 .875rem;
 }
 
