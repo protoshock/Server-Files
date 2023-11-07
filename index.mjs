@@ -54,7 +54,6 @@ function getPlayerBySocket(ws) {
   return foundPlayer;
 }
 
-
 function getPlayersInRoom(roomId) {
   const room = serverData.rooms.get(roomId);
   if (!room) return [];
