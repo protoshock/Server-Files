@@ -1,235 +1,105 @@
-let big_image;
-
-$(document).ready(function() {
-  BrowserDetect.init();
-
-  // Init Material scripts for buttons ripples, inputs animations etc, more info on the next link https://github.com/FezVrasta/bootstrap-material-design#materialjs
-  $('body').bootstrapMaterialDesign();
-
-  window_width = $(window).width();
-
-  $navbar = $('.navbar[color-on-scroll]');
-  scroll_distance = $navbar.attr('color-on-scroll') || 500;
-
-  $navbar_collapse = $('.navbar').find('.navbar-collapse');
-
-  //  Activate the Tooltips
-  $('[data-toggle="tooltip"], [rel="tooltip"]').tooltip();
-
-  // Activate Popovers
-  $('[data-toggle="popover"]').popover();
-
-  if ($('.navbar-color-on-scroll').length != 0) {
-    $(window).on('scroll', materialKit.checkScrollForTransparentNavbar);
-  }
-
-  materialKit.checkScrollForTransparentNavbar();
-
-  if (window_width >= 768) {
-    big_image = $('.page-header[data-parallax="true"]');
-    if (big_image.length != 0) {
-      $(window).on('scroll', materialKit.checkScrollForParallax);
-    }
-
-  }
-
-
+const socket = io();
+const displayelement = document.getElementById("display");
+var i = 0;
+var usagehistory = [0, 8000];
+var playerhistory = [0, 5];
+var time = [0,0];
+var ping = 0;
+socket.emit("webmessage");
+socket.on("pong", (timestampdata) =>{
+    var d = new Date();
+    var currentMilliseconds = d.getMilliseconds();
+    ping = currentMilliseconds - timestampdata;
 });
 
-$(document).on('click', '.navbar-toggler', function() {
-  $toggle = $(this);
-
-  if (materialKit.misc.navbar_menu_visible == 1) {
-    $('html').removeClass('nav-open');
-    materialKit.misc.navbar_menu_visible = 0;
-    $('#bodyClick').remove();
-    setTimeout(function() {
-      $toggle.removeClass('toggled');
-    }, 550);
-
-    $('html').removeClass('nav-open-absolute');
-  } else {
-    setTimeout(function() {
-      $toggle.addClass('toggled');
-    }, 580);
-
-
-    div = '<div id="bodyClick"></div>';
-    $(div).appendTo("body").click(function() {
-      $('html').removeClass('nav-open');
-
-      if ($('nav').hasClass('navbar-absolute')) {
-        $('html').removeClass('nav-open-absolute');
-      }
-      materialKit.misc.navbar_menu_visible = 0;
-      $('#bodyClick').remove();
-      setTimeout(function() {
-        $toggle.removeClass('toggled');
-      }, 550);
+socket.on('webmessageclient', (data) => {
+    var d = new Date();
+    var currentMilliseconds = d.getMilliseconds();
+    socket.emit("ping", currentMilliseconds);
+    const rooms = data.rooms;
+    const playercount = data.globalplayercount;
+    const Uptime = data.uptime;
+    const Usage = data.usage;
+    usagehistory.push(Usage);
+    playerhistory.push(playercount);
+    time.push(i);
+    while (usagehistory.length > 25) {
+        usagehistory.shift();
+        playerhistory.shift();
+        time.shift();   
+        usagehistory[0] = 0;
+        playerhistory[0] = 0;
+        usagehistory[1] = 8000;
+        playerhistory[1] = 5;
+    }
+    var roomtext = "";
+    rooms.forEach(room => {
+        roomtext = roomtext + `<div class='room'><p>Room ID: ${room.RoomID} | Version: ${room.RoomGameVersion} | Room Name: ${room.RoomName} Player Count: ${room.RoomPlayerCount}/${room.RoomPlayerMax}</p></div><br/>`
     });
-
-    if ($('nav').hasClass('navbar-absolute')) {
-      $('html').addClass('nav-open-absolute');
+    if(rooms.length == 0){
+        roomtext = "<div class='room'><p>No rooms</p></div><br/></div>";
     }
 
-    $('html').addClass('nav-open');
-    materialKit.misc.navbar_menu_visible = 1;
-  }
+    var pingtext = "";
+    if(ping < 50){
+        pingtext = "<p>Ping: </p><p class='good'>" + ping + "ms</p>"
+    } 
+    else{
+        if(ping > 50 && ping < 100){
+            pingtext = "<p>Ping: </p><p class='medium'>" + ping + "ms</p>"
+        }
+        else{
+            pingtext = "<p>Ping: </p><p class='bad'>" + ping + "ms</p>"
+        }
+    }
+
+    displayelement.innerHTML = `<div class='infotext'><p>Uptime: ${Uptime}<p><p>Total Players Online: ${playercount}</p><p>Memory Usage: ${Usage}mb<p><div class='container'>${pingtext}</div></div><div class='container'><canvas class='graph' id='Memory'></canvas><canvas class='graph2' id='Player Count'></canvas></div>${roomtext}`
+
+    new Chart(document.getElementById("Memory"), {
+    type: 'line',
+    data: {
+        labels: time,
+        datasets: [{ 
+            data: usagehistory,
+            label: "Memory Usage",
+            borderColor: "#00ffff",
+            fill: false
+        }
+        ]
+    },
+    options: {
+        animation: {
+duration: 0
+},
+        title: {
+        display: true,
+        text: 'Server Stats'
+        },
+    }
+    });
+    new Chart(document.getElementById("Player Count"), {
+    type: 'line',
+    data: {
+        labels: time,
+        datasets: [
+        {
+            data: playerhistory,
+            label: "Player count",
+            borderColor: "#ff0000",
+            fill: false
+        }
+        ]
+    },
+    options: {
+        animation: {
+duration: 0
+},
+        title: {
+        display: true,
+        text: 'Server Stats'
+        },
+    }
+    });
+
+    i++;
 });
-
-materialKit = {
-  misc: {
-    navbar_menu_visible: 0,
-    window_width: 0,
-    transparent: true,
-    fixedTop: false,
-    navbar_initialized: false,
-    isWindow: document.documentMode || /Edge/.test(navigator.userAgent)
-  },
-
-  initFormExtendedDatetimepickers: function() {
-    $('.datetimepicker').datetimepicker({
-      icons: {
-        time: "fa fa-clock-o",
-        date: "fa fa-calendar",
-        up: "fa fa-chevron-up",
-        down: "fa fa-chevron-down",
-        previous: 'fa fa-chevron-left',
-        next: 'fa fa-chevron-right',
-        today: 'fa fa-screenshot',
-        clear: 'fa fa-trash',
-        close: 'fa fa-remove'
-      }
-    });
-  },
-
-  initSliders: function() {
-    // Sliders for demo purpose
-    let slider = document.getElementById('sliderRegular');
-
-    noUiSlider.create(slider, {
-      start: 40,
-      connect: [true, false],
-      range: {
-        min: 0,
-        max: 100
-      }
-    });
-
-    let slider2 = document.getElementById('sliderDouble');
-
-    noUiSlider.create(slider2, {
-      start: [20, 60],
-      connect: true,
-      range: {
-        min: 0,
-        max: 100
-      }
-    });
-  },
-
-  checkScrollForParallax: function() {
-    oVal = ($(window).scrollTop() / 3);
-    big_image.css({
-      'transform': 'translate3d(0,' + oVal + 'px,0)',
-      '-webkit-transform': 'translate3d(0,' + oVal + 'px,0)',
-      '-ms-transform': 'translate3d(0,' + oVal + 'px,0)',
-      '-o-transform': 'translate3d(0,' + oVal + 'px,0)'
-    });
-  },
-
-  checkScrollForTransparentNavbar: debounce(function() {
-    if ($(document).scrollTop() > scroll_distance) {
-      if (materialKit.misc.transparent) {
-        materialKit.misc.transparent = false;
-        $('.navbar-color-on-scroll').removeClass('navbar-transparent');
-      }
-    } else {
-      if (!materialKit.misc.transparent) {
-        materialKit.misc.transparent = true;
-        $('.navbar-color-on-scroll').addClass('navbar-transparent');
-      }
-    }
-  }, 17)
-};
-
-// Returns a function, that, as long as it continues to be invoked, will not
-// be triggered. The function will be called after it stops being called for
-// N milliseconds. If `immediate` is passed, trigger the function on the
-// leading edge, instead of the trailing.
-
-function debounce(func, wait, immediate) {
-  let timeout;
-  return function() {
-    let context = this,
-      args = arguments;
-    clearTimeout(timeout);
-    timeout = setTimeout(function() {
-      timeout = null;
-      if (!immediate) func.apply(context, args);
-    }, wait);
-    if (immediate && !timeout) func.apply(context, args);
-  };
-};
-
-let BrowserDetect = {
-  init: function() {
-    this.browser = this.searchString(this.dataBrowser) || "Other";
-    this.version = this.searchVersion(navigator.userAgent) || this.searchVersion(navigator.appVersion) || "Unknown";
-  },
-  searchString: function(data) {
-    for (let i = 0; i < data.length; i++) {
-      let dataString = data[i].string;
-      this.versionSearchString = data[i].subString;
-
-      if (dataString.indexOf(data[i].subString) !== -1) {
-        return data[i].identity;
-      }
-    }
-  },
-  searchVersion: function(dataString) {
-    let index = dataString.indexOf(this.versionSearchString);
-    if (index === -1) {
-      return;
-    }
-
-    let rv = dataString.indexOf("rv:");
-    if (this.versionSearchString === "Trident" && rv !== -1) {
-      return parseFloat(dataString.substring(rv + 3));
-    } else {
-      return parseFloat(dataString.substring(index + this.versionSearchString.length + 1));
-    }
-  },
-
-  dataBrowser: [{
-      string: navigator.userAgent,
-      subString: "Chrome",
-      identity: "Chrome"
-    },
-    {
-      string: navigator.userAgent,
-      subString: "MSIE",
-      identity: "Explorer"
-    },
-    {
-      string: navigator.userAgent,
-      subString: "Trident",
-      identity: "Explorer"
-    },
-    {
-      string: navigator.userAgent,
-      subString: "Firefox",
-      identity: "Firefox"
-    },
-    {
-      string: navigator.userAgent,
-      subString: "Safari",
-      identity: "Safari"
-    },
-    {
-      string: navigator.userAgent,
-      subString: "Opera",
-      identity: "Opera"
-    }
-  ]
-};
