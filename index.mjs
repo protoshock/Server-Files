@@ -26,7 +26,7 @@ const serverData = {
 function createId() {
   let newId;
   do {
-    newId = randomBytes(4).toString('hex');
+    newId = randomBytes(4).toString('hex') + "-" + randomBytes(4).toString('hex') + "-" + randomBytes(4).toString('hex') + "-" + randomBytes(4).toString('hex');
   } while (serverData.players.has(newId));
   return newId;
 }
