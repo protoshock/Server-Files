@@ -18,18 +18,6 @@ app.get('/', (req, res) => {
   res.send(page);
 });
 
-app.get('/:roomId', (req, res) => {
-  let roomId = req.params.roomId;
-  const room = serverData.rooms.get(roomId);
-  if(!room) return res.redirect('/');
-  let page = readFileSync('./assets/html/room.html', { encoding: 'utf-8' })
-  page = page.replace(/{room-name}/g, room.name)
-  page = page.replace(/{room-count}/g, room.playerCount)
-  page = page.replace(/{room-maxcount}/g, room.maxplayers)
-  page = page.replace(/{room-version}/g, room.gameversion)
-  res.send(page);
-})
-
 const serverData = {
   players: new Map(),
   rooms: new Map(),
