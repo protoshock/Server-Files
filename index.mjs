@@ -18,18 +18,6 @@ app.get('/', (req, res) => {
   res.send(page);
 });
 
-app.get('/:roomId', (req, res) => {
-  let roomId = req.params.roomId;
-  const room = serverData.rooms.get(roomId);
-  if(!room) return res.redirect('/');
-  let page = readFileSync('./assets/html/room.html', { encoding: 'utf-8' })
-  page = page.replace(/{room-name}/g, room.name)
-  page = page.replace(/{room-count}/g, room.playerCount)
-  page = page.replace(/{room-maxcount}/g, room.maxplayers)
-  page = page.replace(/{room-version}/g, room.gameversion)
-  res.send(page);
-})
-
 const serverData = {
   players: new Map(),
   rooms: new Map(),
@@ -288,6 +276,35 @@ const wss = new Server(server, {
   pingTimeout: 60000
 });
 
+
+setInterval(() => {
+  if (connectedWebClients.size > 0) {
+    const roomslistid = [];
+    const totalMemoryInMB = (totalmem() / (1024 ** 2)).toFixed(2);
+    const freeMemoryInMB = (freemem() / (1024 ** 2)).toFixed(2);
+    const memoryUsed = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
+    serverData.rooms.forEach((room) => {
+      roomslistid.push({
+        RoomID: room.id,
+        RoomName: room.name,
+        RoomPlayerCount: room.playerCount,
+        RoomPlayerMax: room.maxplayers,
+        RoomGameVersion: room.gameversion,
+      });
+    });
+
+    connectedWebClients.forEach((client) => {
+      const data = {
+        rooms: roomslistid,
+        globalplayercount: getTotalPlayerCount(),
+        uptime: convertSecondsToUnits(Math.round(uptime())),
+        usage: Math.round(memoryUsed),
+      };
+      client.emit("webmessageclient", data);
+    })
+  }
+}, 1000);
+
 wss.on('connection', (ws) => {
   ws.on('message', async (message) => {
     const decompressedmessage = await ungzip(message);
@@ -316,33 +333,6 @@ wss.on('connection', (ws) => {
   ws.on('webmessage', () => {
     connectedWebClients.set(ws, ws);
     console.log("[Server] Web Client Connected");
-    setInterval(() => {
-      if (connectedWebClients.size > 0) {
-        const roomslistid = [];
-        const totalMemoryInMB = (totalmem() / (1024 ** 2)).toFixed(2);
-        const freeMemoryInMB = (freemem() / (1024 ** 2)).toFixed(2);
-        const memoryUsed = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
-        serverData.rooms.forEach((room) => {
-          roomslistid.push({
-            RoomID: room.id,
-            RoomName: room.name,
-            RoomPlayerCount: room.playerCount,
-            RoomPlayerMax: room.maxplayers,
-            RoomGameVersion: room.gameversion,
-          });
-        });
-
-        connectedWebClients.forEach((client) => {
-          const data = {
-            rooms: roomslistid,
-            globalplayercount: getTotalPlayerCount(),
-            uptime: convertSecondsToUnits(Math.round(uptime())),
-            usage: Math.round(memoryUsed),
-          };
-          client.emit("webmessageclient", data);
-        })
-      }
-    }, 1000);
   });
 
   ws.on('disconnect', () => {
