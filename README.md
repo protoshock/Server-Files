@@ -11,7 +11,7 @@ This respository contains the files to run a Protoshock game server.
 node --expose-gc index.mjs
 ```
 # Info
-Default port is 8880
+Default port is 8880 (TCP)
 
 You can find a website for the server's status at http://YOUR_OWN_IP:PORT/
 
