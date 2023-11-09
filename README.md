@@ -1,5 +1,5 @@
 # Server-Files
-This respository contains the files to run a Protoshock server.
+This respository contains the files to run a Protoshock game server.
 
 # Requied Modules:
 - npm i socket.io
