@@ -192,7 +192,7 @@ function roomList(ws, amount, emptyonly) {
       roomversion: room.gameversion,
       playercount: room.players.size,
     });
-    if (room.players.size <= room.maxplayers || !emptyonly) return SendMessage(ws, _data);
+    if (room.players.size < room.maxplayers || !emptyonly) return SendMessage(ws, _data);
   });
 }
 
