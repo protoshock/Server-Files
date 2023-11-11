@@ -3,9 +3,10 @@ This repository contains the files to run a Protoshock game server.
 You can either run it directly if  you clone this repo or use Docker
 
 # Required Modules:
-- npm i socket.io
-- npm i node-gzip
-- npm i express
+- socket.io
+- node-gzip
+- express
+These can be installed just by typing npm i or yarn i depending on your package manager
 
 > [!NOTE]
 > If you’re running this on Docker there is no need to install these dependencies
