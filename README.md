@@ -1,7 +1,8 @@
 # Server-Files
-This respository contains the files to run a Protoshock game server using Docker.
+This repository contains the files to run a Protoshock game server.
+You can either run it directly if  you clone this repo or use Docker
 
-# Requied Modules:
+# Required Modules:
 - npm i socket.io
 - npm i node-gzip
 - npm i express
@@ -9,7 +10,7 @@ This respository contains the files to run a Protoshock game server using Docker
 >[!info]
 >If you’re running this on Docker there is no need to install these dependencies
 
-## When trying to start run like this [DEPRICATED]
+## When trying to start run like this
 ```
 node --expose-gc index.mjs
 ```
