@@ -150,7 +150,7 @@ async function removePlayer(ws) {
               sender: createId(),
               id: createId(),
             });
-            console.log(json);
+            //console.log(json);
             SendMessage(playertosend.socket, json);
           }
         });
