@@ -25,7 +25,7 @@ You can find a website for the server's status at ``http://[IP_ADRESS]:[PORT]/``
 
 # Connecting to the Server
 
-To change the server you’re connected to, go to your Protoshock installation directory then ``/Networking/NetworkSettings.json`` and after  ``"server_ip": `` with your own domain or IP and the port at the end. For example ``"server.bracketproto.com:8880"`` which is the default domain.
+To change the server you’re connected to, go to your Protoshock installation directory then ``/Networking/NetworkSettings.json`` and after ``"server_ip":`` add your own domain or IP and the port at the end. For example ``"server.bracketproto.com:8880"`` which is the default domain.
 
 # Using Docker
 
