@@ -7,8 +7,8 @@ You can either run it directly if  you clone this repo or use Docker
 - npm i node-gzip
 - npm i express
 
->[!info]
->If you’re running this on Docker there is no need to install these dependencies
+> [!info]
+> If you’re running this on Docker there is no need to install these dependencies
 
 ## When trying to start run like this
 ```
