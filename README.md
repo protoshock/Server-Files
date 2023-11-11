@@ -6,6 +6,7 @@ You can either run it directly if  you clone this repo or use Docker
 - socket.io
 - node-gzip
 - express
+  
 These can be installed just by typing npm i or yarn i depending on your package manager
 
 > [!NOTE]
