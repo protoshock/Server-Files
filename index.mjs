@@ -57,7 +57,7 @@ function getTotalPlayerCount() {
   return totalPlayerCount;
 }
 
-function joinRoom(ws, roomId, _gameversion) {
+function joinRoom(ws, roomId, _gameversion, ishosting) {
   const player = getPlayerBySocket(ws);
   if (player && player.roomId) return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
   const room = serverData.rooms.get(roomId);
@@ -68,6 +68,7 @@ function joinRoom(ws, roomId, _gameversion) {
     socket: ws,
     roomId: roomId,
     local: true,
+    hosting: ishosting
   };
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
@@ -90,29 +91,92 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
     players: new Map(),
     playerCount: '0',
   };
-  if (!serverData.rooms.size > 0) { 
-    startInterval() 
+  if (!serverData.rooms.size > 0) {
+    startInterval()
   };
   serverData.rooms.set(room.id, room);
-  joinRoom(ws, room.id, _gameversion);
+  joinRoom(ws, room.id, _gameversion, true);
 }
 
-function removePlayer(ws) {
+
+
+async function removePlayer(ws) {
   const player = getPlayerBySocket(ws);
-  if (player == null) return;
+
+  if (!player) {
+    console.error("[Server] Player not found.");
+    return;
+  }
+
   const room = serverData.rooms.get(player.roomId);
-  if (room) {
-    room.players.delete(player.id);
-    room.playerCount--;
-    console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
-    console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
-    if (room.players.size === 0) {
-      serverData.rooms.delete(room.id);
-      clearInterval(intervalReference);
+
+  if (!room) {
+    console.error("[Server] Room not found.");
+    return;
+  }
+
+  if (player.hosting && room.players.size > 1) {
+    const players = Array.from(room.players.values());
+
+    // Ensure that players is an array
+    if (!Array.isArray(players)) {
+      console.error("[Server] Players is not an array.");
+      return;
+    }
+
+    let nextPlayer = null;
+
+    for (const playerobject of players) {
+      if (playerobject !== player) {
+        nextPlayer = playerobject;
+        break;
+      }
+    }
+
+    if (nextPlayer) {
+      var data = JSON.stringify({
+        type: "newhost",
+        newhostid: nextPlayer.id
+      });
+      
+      nextPlayer.hosting = true;
+
+      try {
+        players.forEach((playertosend) => {
+          if (playertosend !== player) {
+            let json = JSON.stringify({
+              action: 'rpc',
+              rpc: data,
+              sender: createId(),
+              id: createId(),
+            });
+            console.log(json);
+            SendMessage(playertosend.socket, json);
+          }
+        });
+      } catch (error) {
+        console.error("[Server] Error sending RPC:", error);
+      }
     }
   }
+
+
   serverData.players.delete(player.id);
+  room.players.delete(player.id);
+  room.playerCount--;
+  if(room.playerCount == 0){
+    serverData.rooms.delete(room.id);
+  }
+
+  console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
+  console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
+
+  if (serverData.rooms.size === 0) {
+    clearInterval(intervalReference);
+  }
 }
+
+
 
 setInterval(function () {
   global.gc();
@@ -122,7 +186,7 @@ function broadcastRoomInfo() {
   serverData.players.forEach((player) => {
     if (player == null) return;
     const room = serverData.rooms.get(player.roomId);
-    if(!room) return;
+    if (!room) return;
     const playerIds = Array.from(room.players.keys()).map((id) => ({
       playerId: id,
       local: id === player.id,
@@ -140,7 +204,7 @@ function broadcastRoomInfo() {
   });
 }
 
-function handleRPC(ws, data) {
+async function handleRPC(ws, data) {
   let player = getPlayerBySocket(ws)
   if (player === null) return;
   let players = getPlayersInRoom(player.roomId);
@@ -149,7 +213,7 @@ function handleRPC(ws, data) {
     const _data = JSON.stringify({
       action: parsedData.action,
       rpc: parsedData.rpc,
-      sender: player.id,
+      sender: parsedData.sender,
       id: createId(),
     });
     if (p.socket && p.socket.send) {
@@ -183,7 +247,7 @@ function convertSecondsToUnits(seconds) {
 }
 
 function roomList(ws, amount, emptyonly) {
-  if(serverData.rooms.size < 0) return;
+  if (serverData.rooms.size < 0) return;
   serverData.rooms.forEach((room) => {
     const _data = JSON.stringify({
       action: 'roomlist_roominfo',
@@ -200,7 +264,7 @@ function getCurrentPlayers(ws) {
   const player = getPlayerBySocket(ws);
   if (player == null) return;
   const room = serverData.rooms.get(player.roomId);
-  if(!room) return;
+  if (!room) return;
   const playerIds = Array.from(room.players.keys()).map((id) => ({
     playerId: id,
     local: id === player.id,
@@ -223,7 +287,7 @@ function handleAction(ws, data) {
       createRoom(ws, data.roomName, data.scene, data.scenepath, data.gameversion, data.maxplayers);
       break;
     case 'joinRoom':
-      joinRoom(ws, data.roomId, data.gameversion);
+      joinRoom(ws, data.roomId, data.gameversion, false);
       break;
     case 'rpc':
       handleRPC(ws, JSON.stringify(data));
@@ -255,7 +319,9 @@ async function sendBundledCompressedMessages() {
     const bundledMessage = messages.join('\n');
     try {
       let compressedData = await gzip(bundledMessage);
-      socket.emit('clientmessage', compressedData);
+      if(socket != undefined){
+        socket.emit('clientmessage', compressedData);
+      }
     } catch (error) {
       console.error("Error compressing and sending message:", error);
     }
@@ -278,6 +344,7 @@ const wss = new Server(server, {
 
 
 setInterval(() => {
+
   if (connectedWebClients.size > 0) {
     const roomslistid = [];
     const totalMemoryInMB = (totalmem() / (1024 ** 2)).toFixed(2);
@@ -320,7 +387,7 @@ wss.on('connection', (ws) => {
       }
     });
   });
-  
+
 
   ws.on('ping', (timestamp) => {
     ws.volatile.emit('pong', timestamp);
@@ -344,6 +411,8 @@ wss.on('connection', (ws) => {
     }
   });
 });
+
+
 
 const port = 8880;
 server.listen(port, () => {
