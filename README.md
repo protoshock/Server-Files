@@ -1,21 +1,31 @@
 # Server-Files
-This respository contains the files to run a Protoshock game server.
+This repository contains the files to run a Protoshock game server.
+You can either run it directly if  you clone this repo or use Docker
 
-# Requied Modules:
+# Required Modules:
 - npm i socket.io
 - npm i node-gzip
 - npm i express
+
+> [!NOTE]
+> If you’re running this on Docker there is no need to install these dependencies
 
 ## When trying to start run like this
 ```
 node --expose-gc index.mjs
 ```
+
 # Info
-Default port is 8880 (TCP)
+Default port is ``8880`` (TCP)
 
-You can find a website for the server's status at http://YOUR_OWN_IP:PORT/
+You can find a website for the server's status at ``http://[IP_ADRESS]:[PORT]/`` or
+``http://your.domain.com:[PORT]/``
 
-# Connecting
+# Connecting to the Server
 
-To connect to the server, go to your protoshock installation directory then Networking/NetworkSettings.json and replace "server_ip" with "YOUR_OWN_IP:PORT".
+To change the server you’re connected to, go to your Protoshock installation directory then ``/Networking/NetworkSettings.json`` and after  ``"server_ip": `` with your own domain or IP and the port at the end. For example ``"server.bracketproto.com:8880"`` which is the default domain.
 
+# Using Docker
+
+If you want to run the Protoshock server using Docker here is the simplest way to get it running
+``docker run -d -p 8880:8880 gizzyuwu/protoshock:main``
