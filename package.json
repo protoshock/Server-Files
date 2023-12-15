@@ -5,7 +5,7 @@
   "main": "index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --expose-gc index.mjs"
+    "start": "nodeindex.mjs"
   },
   "repository": {
     "type": "git",
