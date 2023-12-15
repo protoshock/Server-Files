@@ -1,0 +1,29 @@
+{
+  "name": "protoshock-server",
+  "description": "This respository contains the files to run a Protoshock server instance.",
+  "version": "1.0.0",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --expose-gc index.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/protoshock/Server-Files.git"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-gzip": "^1.1.2",
+    "socket.io": "^4.7.2"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.8",
+    "utf-8-validate": "^5.0.10"
+  },
+  "author": "BracketProto",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/protoshock/Server-Files/issues"
+  },
+  "homepage": "https://github.com/protoshock/Server-Files#readme"
+}
