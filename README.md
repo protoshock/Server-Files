@@ -23,7 +23,7 @@ node index.js
 # Info
 Default port is ``8880`` (TCP)
 
-You can find a website for the server's status at ``http://[IP_ADRESS]:[PORT]/`` or
+You can find a website for the server's status at ``http://[IP_ADDRESS]:[PORT]/`` or
 ``http://your.domain.com:[PORT]/``
 
 # Connecting to the Server
