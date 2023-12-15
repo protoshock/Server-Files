@@ -5,5 +5,6 @@ RUN git clone https://github.com/protoshock/Server-Files.git .
 RUN npm install
 ARG EXPOSE_GC=false
 ENV EXPOSE_GC=$EXPOSE_GC
-CMD ["node", "index.mjs", "${EXPOSE_GC === 'true' ? '--expose-gc' : ''}"]
+RUN chmod +x /usr/src/app/entryscript.sh
+ENTRYPOINT ["/usr/src/app/entryscript.sh"]
 EXPOSE 8880
