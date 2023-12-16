@@ -9,8 +9,8 @@ const express = require('express')
 const path = require('path')
 const app = express();
 const options = {
-  key: fs.readFileSync(`/home/gizzy/ssl/key/furgiz.key`),
-  cert: fs.readFileSync(`/home/gizzy/ssl/crt/furgiz.crt`)
+  key: fs.readFileSync(`/opt/ssl/key/furgiz.key`),
+  cert: fs.readFileSync(`/opt/ssl/crt/furgiz.crt`)
 }
 const server = createServer(options, app);
 let intervalReference;
