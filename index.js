@@ -1,13 +1,17 @@
-const { createServer } = require('node:http')
+const { createServer } = require('https')
 const { Server } = require('socket.io')
-const { uptime } = require('node:process')
-const { totalmem, freemem } = require('node:os')
-const { randomBytes } = require('node:crypto')
+const { uptime } = require('process')
+const { totalmem, freemem } = require('os')
+const { randomBytes } = require('crypto')
 const { gzip, ungzip } = require('node-gzip')
 const express = require('express')
-const path = require('node:path')
+const path = require('path')
 const app = express();
-const server = createServer(app);
+const options = {
+  key: fs.readFileSync(`/home/gizzy/ssl/key/furgiz.key`),
+  cert: fs.readFileSync(`/home/gizzy/ssl/crt/furgiz.crt`)
+}
+const server = createServer(options, app);
 let intervalReference;
 app.use('/assets', express.static(path.join(__dirname, '/assets')));
 app.get('/', (req, res) => {

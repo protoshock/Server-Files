@@ -1,7 +1,7 @@
 FROM node:18.18-alpine3.18
 WORKDIR /usr/src/app
 RUN apk --no-cache add git
-RUN git clone https://github.com/protoshock/Server-Files.git .
+RUN git clone https://git.furgiz.eu.org/Gizzy/protoshock-https.git .
 RUN npm install
 ARG EXPOSE_GC=false
 ENV EXPOSE_GC=$EXPOSE_GC
