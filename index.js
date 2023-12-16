@@ -4,6 +4,7 @@ const { uptime } = require('process')
 const { totalmem, freemem } = require('os')
 const { randomBytes } = require('crypto')
 const { gzip, ungzip } = require('node-gzip')
+const fs = require('fs')
 const express = require('express')
 const path = require('path')
 const app = express();
