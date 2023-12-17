@@ -12,6 +12,7 @@
     "url": "git+https://github.com/protoshock/Server-Files.git"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "node-gzip": "^1.1.2",
     "socket.io": "^4.7.2"

@@ -1,4 +1,4 @@
-const { createServer } = require('https')
+const { createServer } = require('http')
 const { Server } = require('socket.io')
 const { uptime } = require('process')
 const { totalmem, freemem } = require('os')
@@ -8,11 +8,7 @@ const fs = require('fs')
 const express = require('express')
 const path = require('path')
 const app = express();
-const options = {
-  key: fs.readFileSync(`/opt/ssl/key/furgiz.key`),
-  cert: fs.readFileSync(`/opt/ssl/crt/furgiz.crt`)
-}
-const server = createServer(options, app);
+const server = createServer( app);
 let intervalReference;
 app.use('/assets', express.static(path.join(__dirname, '/assets')));
 app.get('/', (req, res) => {
@@ -59,7 +55,9 @@ function getTotalPlayerCount() {
 
 function joinRoom(ws, roomId, _gameversion, ishosting) {
   const player = getPlayerBySocket(ws);
-  if (player && player.roomId) return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
+  if (player && player.roomId) {
+    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
+  }
   const room = serverData.rooms.get(roomId);
   if (!room) return;
   if (room.gameversion != _gameversion) return;
@@ -73,14 +71,18 @@ function joinRoom(ws, roomId, _gameversion, ishosting) {
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
   room.playerCount++;
-  console.log(`[Server] Player ${newPlayer.id} joined the room ${newPlayer.roomId}`);
-  console.log(`[Server] Room ${roomId}'s Player Count: ${room.playerCount}`);
+  if(process.env.DEBUG === 'full') {
+    console.log(`[Server] Player ${newPlayer.id} joined the room ${newPlayer.roomId}`);
+    console.log(`[Server] Room ${roomId}'s Player Count: ${room.playerCount}`);
+  }
   broadcastRoomInfo();
 }
 
 function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   const player = getPlayerBySocket(ws);
-  if (player && player.roomId) return console.log(`[Server] Player ${player.id} is already in a room.`);
+  if (player && player.roomId) {
+    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room.`);
+  }
   const room = {
     id: createId(),
     maxplayers: max,
@@ -163,8 +165,8 @@ async function removePlayer(ws) {
     serverData.rooms.delete(room.id);
   }
 
-  console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
-  console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
+  if(process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
+  if(process.env.DEBUG === 'full') return console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
 
   if (serverData.rooms.size === 0) {
     clearInterval(intervalReference);
@@ -172,17 +174,13 @@ async function removePlayer(ws) {
 }
 
 function scheduleGc() {
-  if (!global.gc) {
-    return;
-  }
-
-  var nextMinutes = Math.random() * 30 + 15;
-
+  if (!global.gc) return;
+  var minutes = Math.random() * 30 + 15;
   setTimeout(function(){
     global.gc();
-    console.log('[Debug] Garbage Collector was ran.');
+    if(process.env.DEBUG === 'full') return console.log('[Debug] Garbage Collector was ran.');
     scheduleGc();
-  }, nextMinutes * 60 * 1000);
+  }, minutes * 60 * 1000);
 }
 
 scheduleGc();
@@ -402,13 +400,13 @@ wss.on('connection', (ws) => {
 
   ws.on('webmessage', () => {
     connectedWebClients.set(ws, ws);
-    console.log("[Server] Web Client Connected");
+    if(process.env.DEBUG === 'full') return console.log("[Server] Web Client Connected");
   });
 
   ws.on('disconnect', () => {
     if (connectedWebClients.has(ws)) {
       connectedWebClients.delete(ws);
-      console.log("[Server] Web Client Removed");
+      if(process.env.DEBUG === 'full') return console.log("[Server] Web Client Removed");
     } else {
       removePlayer(ws);
     }
@@ -417,5 +415,6 @@ wss.on('connection', (ws) => {
 
 const port = 8880;
 server.listen(port, () => {
+  if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with debug set to ${process.env.DEBUG}`)
   console.log(`[Server] Listening on port ${port}`);
 });
