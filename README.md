@@ -57,8 +57,9 @@ services:
     restart: always
 ```
 
-To enable expose-gc add this to the yml file
+To enable expose-gc or change debug add this to the yml file
 ```yml
     environment:
       - EXPOSE_GC=true
+      - DEBUG=full
 ```
