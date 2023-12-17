@@ -40,9 +40,9 @@ If you want to run the Protoshock server using Docker here is the simplest way t
 docker run -d -p 8880:8880 protoshock/protoshock-server:main
 ```
 
-To enable expose-gc add the enviroment variable EXPOSE_GC
+To enable expose-gc or debug add the enviroment variable EXPOSE_GC or DEBUG
 ```bash
-docker run -d -p 8880:8880 -e EXPOSE_GC=true protoshock/protoshock-server:main
+docker run -d -p 8880:8880 -e EXPOSE_GC=true DEBUG=full protoshock/protoshock-server:main
 ```
 
 If you prefer Docker Compose you can use this
