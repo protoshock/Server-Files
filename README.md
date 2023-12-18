@@ -40,9 +40,9 @@ If you want to run the Protoshock server using Docker here is the simplest way t
 docker run -d -p 8880:8880 protoshock/protoshock-server:main
 ```
 
-To enable expose-gc, change debug type or use https add the enviroment variable EXPOSE_GC or DEBUG
+To enable expose-gc, change debug type or use https add the enviroment variables:
 ```bash
-docker run -d -p 8880:8880 -e EXPOSE_GC=true DEBUG=full HTTPS_KEY= '/path/to/ssl/private_key' HTTPS_CERT='/path/to/ssl/certificate' protoshock/protoshock-server:main
+docker run -d -p 8880:8880 -e EXPOSE_GC=true DEBUG=full HTTPS_KEY='/path/to/ssl/private_key' HTTPS_CERT='/path/to/ssl/certificate' protoshock/protoshock-server:main
 ```
 
 If you prefer Docker Compose you can use this
