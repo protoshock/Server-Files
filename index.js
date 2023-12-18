@@ -1,4 +1,3 @@
-const { createServer } = require('http')
 const { Server } = require('socket.io')
 const { uptime } = require('process')
 const { totalmem, freemem } = require('os')
@@ -7,8 +6,20 @@ const { gzip, ungzip } = require('node-gzip')
 const fs = require('fs')
 const express = require('express')
 const path = require('path')
+require('dotenv').config()
 const app = express();
-const server = createServer( app);
+let server;
+if(process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
+  const { createServer } = require('https')
+  let ssl = {
+    key: fs.readFileSync(process.env.HTTPS_KEY, 'utf8'), 
+    cert: fs.readFileSync(process.env.HTTPS_CERT, 'utf8')
+  };
+  server = createServer(ssl, app);
+} else {
+  const { createServer } = require('http')
+  server = createServer(app);
+}
 let intervalReference;
 app.use('/assets', express.static(path.join(__dirname, '/assets')));
 app.get('/', (req, res) => {
@@ -415,6 +426,11 @@ wss.on('connection', (ws) => {
 
 const port = 8880;
 server.listen(port, () => {
-  if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with debug set to ${process.env.DEBUG}`)
-  console.log(`[Server] Listening on port ${port}`);
+  if(process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
+    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with https and debug set to ${process.env.DEBUG}`)
+    console.log(`[Server] Listening on port ${port} with https`);
+  } else {
+    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with debug set to ${process.env.DEBUG}`)
+    console.log(`[Server] Listening on port ${port}`);
+  }
 });
