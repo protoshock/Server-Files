@@ -64,6 +64,39 @@ function getTotalPlayerCount() {
   return totalPlayerCount;
 }
 
+function checkRoomValidity() {
+  serverData.rooms.forEach((room, roomId) => {
+    // Array to store invalid player IDs
+    const invalidPlayers = [];
+
+    room.players.forEach((player, playerId) => {
+      // Get player info based on WebSocket
+      const playerBySocket = getPlayerBySocket(player.socket);
+
+      // Check if player retrieved by socket matches the stored player
+      if (!playerBySocket || playerBySocket.id !== player.id) {
+        invalidPlayers.push(playerId);
+      }
+    });
+
+    // Remove invalid players and update player count
+    invalidPlayers.forEach(playerId => {
+      room.players.delete(playerId);
+      room.playerCount--;
+      console.log(`[Server] Player ${playerId} in Room ${roomId} is not valid. Removed from the room.`);
+    });
+
+    // Check if room's player count is 0 or less
+    if (room.playerCount <= 0) {
+      // Close the room if player count reaches 0
+      closeRoom(roomId);
+    }
+  });
+}
+
+setInterval(checkRoomValidity, 10000);
+
+
 function joinRoom(ws, roomId, _gameversion, ishosting) {
   const player = getPlayerBySocket(ws);
   if (player && player.roomId) {
