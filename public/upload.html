@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Protoshock game server | Upload File</title>
+  <link rel="shortcut icon" href="/favicon.ico">
+  <meta content="#00fffb" data-react-helmet="true" name="theme-color" />
+  <link rel="stylesheet" href="/assets/css/other.css">
+  <link rel="stylesheet" href="/assets/css/shared.css">
+</head>
+
+<body>
+  <div class="container center">
+    <div class="divround" style="width: 510px;">
+      <img src="/assets/img/logo.png" style="width: 100px; height: 100px;">
+      <h2>Upload a mod to the protoshock game server</h2>
+      <div class="grid-container">
+        <div class="grid-item">
+          <form id="uploadForm" enctype="multipart/form-data" class="form">
+            <div class="form-group" style="margin-bottom: auto;">
+              <label style="display: inline-block;">Room ID:</label>
+              <input type="text" id="roomId" style="width: auto;" required>
+              <br>
+              <label style="display: inline-block;">Mod:</label>
+              <input type="file" id="fileInput" name="fup" style="width: auto;" required>
+              <br>
+              <input type="button" id="uploadBtn" value="Upload File" style="width: auto; background-color: #2c2f33;">
+              <div class="progress" id="progress-container" style="display: none;">
+                <div class="progress-bar" id="progressBar"></div>
+              </div>
+              <span id="status"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      $('#uploadBtn').click(function () {
+        var fileInput = document.getElementById('fileInput');
+        var roomId = document.getElementById('roomId').value;
+        var file = fileInput.files[0];
+        if (file) {
+          var formData = new FormData();
+          formData.append("fup", file);
+
+          console.log(formData);
+
+          var url = new URL("http://localhost:8880/mods/upload");
+          url.searchParams.append('roomId', roomId);
+          url.searchParams.append('fileName', file.name);
+
+          $.ajax({
+            url: url,
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function () {
+              var xhr = new window.XMLHttpRequest();
+              xhr.upload.addEventListener("progress", function (evt) {
+                if (evt.lengthComputable) {
+                  var percentComplete = ((evt.loaded / evt.total) * 100).toFixed();
+                  $('#progressBar').width(percentComplete + '%');
+                }
+              }, false);
+              return xhr;
+            },
+            beforeSend: function () {
+              $('#progressBar').attr('class', "progress-bar");
+              $('#progressBar').width('0%');
+              $('#progress-container').css('display', 'block');
+              $('#progressBar').css('display', 'block');
+              $("#status").empty().text("File is uploading...");
+            },
+            error: function (xhr) {
+              console.log(xhr);
+              if (xhr.status === 400) {
+                $('#progressBar').attr('class', "progress-bar error");
+                $("#status").empty().text(xhr.responseJSON.message);
+              } else if (xhr.status === 401) {
+                $('#progressBar').attr('class', "progress-bar error");
+                $("#status").empty().text("Please refresh the page and login again.");
+              } else if (xhr.status === 500) {
+                $('#progressBar').attr('class', "progress-bar error");
+                $("#status").empty().text("Error uploading file.");
+              }
+            },
+            success: function (response, status, xhr) {
+              console.log(response);
+              if (xhr.status === 200) {
+                if (response.success) {
+                  $('#progressBar').attr('class', "progress-bar success");
+                  $("#status").empty().text(response.message);
+                  $('#uploadForm')[0].reset();
+                } else {
+                  if (xhr.status === 401) {
+                    $('#progressBar').attr('class', "progress-bar error");
+                    $("#status").empty().text("Please refresh the page and login again.");
+                  } else {
+                    $('#progressBar').attr('class', "progress-bar error");
+                    $("#status").empty().text("Error: " + response.message);
+                  };
+                }
+              } else {
+                $('#progressBar').attr('class', "progress-bar error");
+                $("#status").empty().text("Error: " + response);
+              }
+            }
+          });
+        } else {
+          $("#status").empty().text("Please select a file.");
+          $('#progressBar').css('display', 'none');
+          $('#progressBar').attr('class', "progress-bar error");
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -1,29 +1,137 @@
-const { Server } = require('socket.io')
-const { uptime } = require('process')
-const { totalmem, freemem } = require('os')
-const { randomBytes } = require('crypto')
-const { gzip, ungzip } = require('node-gzip')
-const fs = require('fs')
-const express = require('express')
-const path = require('path')
-require('dotenv').config()
+const { Server } = require('socket.io');
+const { uptime } = require('process');
+const { totalmem, freemem } = require('os');
+const { randomBytes } = require('crypto');
+const multer = require('multer');
+const { gzip, ungzip } = require('node-gzip');
+const ss = require('socket.io-stream');
+const fs = require('fs');
+const express = require('express');
+const path = require('path');
+
+require('dotenv').config();
+
 const app = express();
 let server;
-if(process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
-  const { createServer } = require('https')
+
+if (process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
+  const { createServer } = require('https');
   let ssl = {
-    key: fs.readFileSync(process.env.HTTPS_KEY, 'utf8'), 
+    key: fs.readFileSync(process.env.HTTPS_KEY, 'utf8'),
     cert: fs.readFileSync(process.env.HTTPS_CERT, 'utf8')
   };
   server = createServer(ssl, app);
 } else {
-  const { createServer } = require('http')
+  const { createServer } = require('http');
   server = createServer(app);
 }
+
+// Use cors middleware to allow/disallow
+const APP_ORIGIN = ["*", "localhost:8880"];
+console.log('Loading CORS');
+const cors = require('cors');
+const corsOptions = {
+  origin: APP_ORIGIN,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST']
+};
+app.use(cors(corsOptions));
+
+// Favicon:
+const favicon = require('serve-favicon');
+app.use(favicon(path.join(__dirname, 'public', 'assets', 'img', 'logo.png')));
+
 let intervalReference;
-app.use('/assets', express.static(path.join(__dirname, '/assets')));
+app.use(express.static(path.join(__dirname, '/public')));
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, './views/index.html'));
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+app.post('/mods/upload', (req, res) => {
+  const roomId = req.query.roomId;
+  const fileName = req.query.fileName;
+
+  // Validate that roomId and fileName are provided
+  if (!roomId || !fileName) {
+    if (!roomId && !fileName) {
+      return res.status(400).json({ success: false, message: 'Both roomId and fileName are required' });
+    } else if (!roomId) {
+      return res.status(400).json({ success: false, message: 'roomId is required' });
+    } else if (!fileName) {
+      return res.status(400).json({ success: false, message: 'fileName is required' });
+    }
+  } else {
+    const storage = multer.diskStorage({
+      destination: function (req, file, callback) {
+        const roomId = req.query.roomId;
+        // Validate that roomId is provided
+        if (!roomId) {
+          return callback(new Error('roomId is required'), null);
+        }
+        const uploadpath = path.join(__dirname, 'mods', roomId);
+        if (!fs.existsSync(uploadpath)) {
+          return callback(new Error('roomId does not exist'), null);
+        }
+        callback(null, uploadpath);
+      },
+      filename: function (req, file, callback) {
+        const maxFileNameLength = 50;
+        const File = {
+          origName: file.originalname,
+          name: file.originalname.split(".").slice(0, -1).join("."),
+          ext: file.originalname.split(".").pop(),
+        };
+        File.webFriendly = File.name
+          .replace(/[^\w\s-]/gi, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .substring(0, maxFileNameLength)
+          .toLowerCase() + "." + File.ext;
+        callback(null, File.webFriendly);
+      },
+    });
+    const upload = multer({ storage: storage }).single('fup');
+    upload(req, res, function (err) {
+      if (err) {
+        console.error(err);
+        return res.json({ success: false, message: "Error uploading file." });
+      }
+      res.json({ success: true, message: "File uploaded successfully!" });
+    });
+  }
+});
+app.get('/mods/:roomId/:filename', async (req, res) => {
+  const { roomId, filename } = req.params;
+  const filePath = path.join(__dirname, 'mods', roomId, filename);
+
+  console.log(req.body);
+
+  // Validate that roomId and filename are provided
+  if (!roomId || !filename) {
+    if (!roomId && !filename) {
+      return res.status(400).json({ error: true, reason: 'Both roomId and filename are required' });
+    } else if (!roomId) {
+      return res.status(400).json({ error: true, reason: 'roomId is required' });
+    } else {
+      return res.status(400).json({ error: true, reason: 'filename is required' });
+    }
+  }
+
+  try {
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      console.error('File does not exist', error);
+      res.status(404).json({ error: 'Mod does not exist' });
+    }
+  } catch (error) {
+    console.error('Error reading or parsing file:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Catch-all route for handling unknown routes
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
 const serverData = {
@@ -67,7 +175,7 @@ function getTotalPlayerCount() {
 function joinRoom(ws, roomId, _gameversion, ishosting) {
   const player = getPlayerBySocket(ws);
   if (player && player.roomId) {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
+    if (process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
   }
   const room = serverData.rooms.get(roomId);
   if (!room) return;
@@ -82,7 +190,7 @@ function joinRoom(ws, roomId, _gameversion, ishosting) {
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
   room.playerCount++;
-  if(process.env.DEBUG === 'full') {
+  if (process.env.DEBUG === 'full') {
     console.log(`[Server] Player ${newPlayer.id} joined the room ${newPlayer.roomId}`);
     console.log(`[Server] Room ${roomId}'s Player Count: ${room.playerCount}`);
   }
@@ -92,7 +200,7 @@ function joinRoom(ws, roomId, _gameversion, ishosting) {
 function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   const player = getPlayerBySocket(ws);
   if (player && player.roomId) {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room.`);
+    if (process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room.`);
   }
   const room = {
     id: createId(),
@@ -108,6 +216,14 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
     startInterval()
   };
   serverData.rooms.set(room.id, room);
+  fs.mkdir(path.join(__dirname, 'mods', room.id), (err) => {
+    if (err) {
+      if (err.code == "EEXIST") {
+        console.log("Room already exists!");
+      }
+    };
+    console.log(`Created room: ${room.id}'s mod folder`);
+  });
   joinRoom(ws, room.id, _gameversion, true);
 }
 
@@ -148,7 +264,7 @@ async function removePlayer(ws) {
         type: "newhost",
         newhostid: nextPlayer.id
       });
-      
+
       nextPlayer.hosting = true;
 
       try {
@@ -172,12 +288,16 @@ async function removePlayer(ws) {
   serverData.players.delete(player.id);
   room.players.delete(player.id);
   room.playerCount--;
-  if(room.playerCount == 0){
+  if (room.playerCount == 0) {
     serverData.rooms.delete(room.id);
+    fs.unlink(path.join(__dirname, 'mods', `${room.id}`), (err) => {
+      if (err) throw err;
+      console.log(path.join(__dirname, 'mods', `${room.id}`) + " was deleted");
+    });
   }
 
-  if(process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
-  if(process.env.DEBUG === 'full') return console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
+  if (process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
+  if (process.env.DEBUG === 'full') return console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
 
   if (serverData.rooms.size === 0) {
     clearInterval(intervalReference);
@@ -187,9 +307,9 @@ async function removePlayer(ws) {
 function scheduleGc() {
   if (!global.gc) return;
   var minutes = Math.random() * 30 + 15;
-  setTimeout(function(){
+  setTimeout(function () {
     global.gc();
-    if(process.env.DEBUG === 'full') return console.log('[Debug] Garbage Collector was ran.');
+    if (process.env.DEBUG === 'full') return console.log('[Debug] Garbage Collector was ran.');
     scheduleGc();
   }, minutes * 60 * 1000);
 }
@@ -294,6 +414,35 @@ function getCurrentPlayers(ws) {
   SendMessage(player.socket, json);
 }
 
+function listMods(socket, roomId) {
+  if (!roomId) {
+    return socket.emit('modsErr', { error: `no roomId provided` })
+  } else {
+    if (path.join(__dirname, 'mods', roomId)) {
+      fs.readdir(`./mods/${roomId}`, async (err, files) => {
+        if (err) return console.log('error:', err)
+        const jsonData = JSON.stringify({ files })
+        const compressedData = await gzip(jsonData)
+        socket.emit('listMods', compressedData)
+      });
+    } else {
+      return socket.emit('modsErr', { error: `roomid: ${roomId} doesn\'t exist` })
+    }
+  }
+}
+
+function getMod(socket, filename) {
+  const file = filename.toLowerCase();
+  console.log('Client requested file:', file)
+  fs.readdir('./mods', (err, files) => {
+    if (err) return console.log('err', err)
+    const modCheck = files.filter((mod) => mod.includes(file))
+    if (modCheck.length == 0 || !modCheck.length) return socket.emit('streamErr', { error: 'mod doesn\'t exist' })
+    const filePath = path.join('./mods', modCheck[0])
+    socket.emit('streamErr', { modurl: `mods/${modCheck[0]}` })
+  });
+}
+
 function handleAction(ws, data) {
   switch (data.action) {
     case 'createRoom':
@@ -314,6 +463,12 @@ function handleAction(ws, data) {
     case 'leave':
       removePlayer(ws);
       break;
+    case 'listMods':
+      listMods(ws, data.roomid);
+      break;
+    case 'getMod':
+      getMod(ws, data.modname);
+      break;
     default:
       break;
   }
@@ -332,7 +487,7 @@ async function sendBundledCompressedMessages() {
     const bundledMessage = messages.join('\n');
     try {
       let compressedData = await gzip(bundledMessage);
-      if(socket != undefined){
+      if (socket != undefined) {
         socket.emit('clientmessage', compressedData);
       }
     } catch (error) {
@@ -355,9 +510,7 @@ const wss = new Server(server, {
   pingTimeout: 60000
 });
 
-
 setInterval(() => {
-
   if (connectedWebClients.size > 0) {
     const roomslistid = [];
     const totalMemoryInMB = (totalmem() / (1024 ** 2)).toFixed(2);
@@ -411,13 +564,13 @@ wss.on('connection', (ws) => {
 
   ws.on('webmessage', () => {
     connectedWebClients.set(ws, ws);
-    if(process.env.DEBUG === 'full') return console.log("[Server] Web Client Connected");
+    if (process.env.DEBUG === 'full') return console.log("[Server] Web Client Connected");
   });
 
   ws.on('disconnect', () => {
     if (connectedWebClients.has(ws)) {
       connectedWebClients.delete(ws);
-      if(process.env.DEBUG === 'full') return console.log("[Server] Web Client Removed");
+      if (process.env.DEBUG === 'full') return console.log("[Server] Web Client Removed");
     } else {
       removePlayer(ws);
     }
@@ -426,11 +579,11 @@ wss.on('connection', (ws) => {
 
 const port = 8880;
 server.listen(port, () => {
-  if(process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with https and debug set to ${process.env.DEBUG}`)
+  if (process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
+    if (process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with https and debug set to ${process.env.DEBUG}`)
     console.log(`[Server] Listening on port ${port} with https`);
   } else {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with debug set to ${process.env.DEBUG}`)
+    if (process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with debug set to ${process.env.DEBUG}`)
     console.log(`[Server] Listening on port ${port}`);
   }
 });
