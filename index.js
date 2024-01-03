@@ -89,7 +89,7 @@ function checkRoomValidity() {
     // Check if room's player count is 0 or less
     if (room.playerCount <= 0) {
       // Close the room if player count reaches 0
-      closeRoom(roomId);
+      serverData.rooms.delete(roomId);
     }
   });
 }
