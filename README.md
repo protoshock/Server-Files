@@ -35,17 +35,17 @@ For example ``"server.bracketproto.com:8880"`` which is the default domain.
 
 # Using Docker
 
-If you want to run the Protoshock server using Docker here is the simplest way to get it running
+If you want to run the Protoshock server using Docker here is the simplest way to get it running:
 ```bash
 docker run -d -p 8880:8880 protoshock/protoshock-server:main
 ```
 
-To enable expose-gc, change debug type or use https add the enviroment variables:
+To enable expose-gc, change debug type or use https add the environment variables:
 ```bash
 docker run -d -p 8880:8880 -e EXPOSE_GC=true DEBUG=full HTTPS_KEY='/path/to/ssl/private_key' HTTPS_CERT='/path/to/ssl/certificate' protoshock/protoshock-server:main
 ```
 
-If you prefer Docker Compose you can use this
+If you prefer Docker Compose you can use this:
 ```yml
 version: '3'
 services:
@@ -57,7 +57,7 @@ services:
     restart: always
 ```
 
-To enable expose-gc, change debug type or use https add this to the yml file
+To enable expose-gc, change debug type or use https add this to the yml file:
 ```yml
     environment:
       - EXPOSE_GC=true
