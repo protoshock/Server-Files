@@ -1,11 +1,11 @@
 {
   "name": "protoshock-server",
-  "description": "This respository contains the files to run a Protoshock server instance.",
+  "description": "This repository contains the necessary files to run a Protoshock server instance.",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.mjs"
+    "test": "echo \"Error: No test specified\" && exit 1",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -14,7 +14,6 @@
   "dependencies": {
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-gzip": "^1.1.2",
     "socket.io": "^4.7.2"
   },
   "optionalDependencies": {

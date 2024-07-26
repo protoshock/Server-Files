@@ -2,7 +2,14 @@ version: '3'
 services:
   protoshock-server:
     image: protoshock/protoshock-server:main
-    container_name: Protoshock-Server
+    container_name: Protoshock
     ports:
       - "8880:8880"
-    restart: on-failure
+    environment:
+      - expostGC=true
+      - debugType=full
+      - useHTTPS=true
+      - httpsCert='/path/to/ssl/certificate'
+      - httpsKey='/path/to/ssl/private_key'
+      - port=8880
+    restart: always

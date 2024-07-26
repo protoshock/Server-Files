@@ -1,0 +1,11 @@
+version: '3'
+services:
+  protoshock-server:
+    build:
+      context: .
+      dockerfile: Dev-Dockerfile
+    image: protoshock-server
+    container_name: Protoshock-Server
+    ports:
+      - "8880:8880"
+    restart: always

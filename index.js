@@ -1,30 +1,96 @@
 const { Server } = require('socket.io')
-const { uptime } = require('process')
-const { totalmem, freemem } = require('os')
 const { randomBytes } = require('crypto')
-const { gzip, ungzip } = require('node-gzip')
+const { createGzip, createGunzip } = require('zlib')
 const fs = require('fs')
 const express = require('express')
 const path = require('path')
+const { finished } = require('stream/promises');
 require('dotenv').config()
 const app = express();
 let server;
-if(process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
+let messageInterval;
+
+if (!process.env.countryCode) {
+  async function getCountryCode() {
+    try {
+      const response = await fetch('http://ip-api.com/json');
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      const data = await response.json();
+      const { countryCode } = data;
+      const envFilePath = path.resolve(__dirname, '.env');
+      let envFile = '';
+      if (fs.existsSync(envFilePath)) {
+        envFile = fs.readFileSync(envFilePath, 'utf8');
+      }
+      const addedCountryCode = envFile
+        .split('\n')
+        .filter(line => !line.startsWith(`countryCode=`))
+        .concat(`countryCode=${countryCode}`)
+        .join('\n');
+
+      fs.writeFileSync(envFilePath, addedCountryCode);
+      process.env.countryCode = countryCode
+      if (process.env.debugType == 3) {
+        console.log(`[Server] The current country code "${countryCode}" was added to the environment config for server selection usage.`);
+      }
+    } catch (error) {
+      console.error('Error fetching country code:', error);
+    }
+  }
+  getCountryCode();
+}
+
+function formatUptime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+if (!process.env.port) {
+  console.log("[Warning] Port wasn't provided using default one.")
+  process.env.port = 8880
+}
+
+if (process.env.useHTTPS === 'true') {
+  if (!process.env.httpsCert) return console.log('[Error] useHTTPS is set to true but the certificate path is missing');
+  if (!process.env.httpsKey) return console.log('[Error] useHTTPS is set to true but the certificate key path is missing');
   const { createServer } = require('https')
-  let ssl = {
-    key: fs.readFileSync(process.env.HTTPS_KEY, 'utf8'), 
-    cert: fs.readFileSync(process.env.HTTPS_CERT, 'utf8')
-  };
-  server = createServer(ssl, app);
+  server = createServer({
+    cert: fs.readFileSync(process.env.httpsCert, 'utf8'),
+    key: fs.readFileSync(process.env.httpsKey, 'utf8')
+  }, app);
 } else {
   const { createServer } = require('http')
   server = createServer(app);
 }
-let intervalReference;
+
 app.use('/assets', express.static(path.join(__dirname, '/assets')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './views/index.html'));
 });
+
+app.get('/api/stats', (req, res) => {
+  const roomsList = [];
+  serverData.rooms.forEach((room) => {
+    roomsList.push({
+      RoomID: room.id,
+      RoomName: room.name,
+      RoomPlayerCount: room.playerCount,
+      RoomPlayerMax: room.maxplayers,
+      RoomGameVersion: room.gameversion,
+    });
+  });
+
+  res.json({
+    playerCount: getTotalPlayerCount(),
+    memoryUsage: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}mb`,
+    countryCode: process.env.countryCode,
+    uptime: formatUptime(Math.round(process.uptime())),
+    rooms: roomsList || "",
+    roomsCount: serverData.rooms.length || 0
+  })
+})
 
 const serverData = {
   players: new Map(),
@@ -34,13 +100,13 @@ const serverData = {
 function createId() {
   let newId;
   do {
-    newId = randomBytes(4).toString('hex') + "-" + randomBytes(4).toString('hex') + "-" + randomBytes(4).toString('hex') + "-" + randomBytes(4).toString('hex');
+    newId = Array.from({ length: 4 }, () => randomBytes(4).toString('hex')).join('-');
   } while (serverData.players.has(newId));
   return newId;
 }
 
 function getPlayerBySocket(ws) {
-  let foundPlayer = null;
+  let foundPlayer;
   serverData.players.forEach((player) => {
     if (player.socket === ws) {
       foundPlayer = player;
@@ -66,14 +132,11 @@ function getTotalPlayerCount() {
 
 function checkRoomValidity() {
   serverData.rooms.forEach((room, roomId) => {
-    // Array to store invalid player IDs
     const invalidPlayers = [];
 
     room.players.forEach((player, playerId) => {
       // Get player info based on WebSocket
       const playerBySocket = getPlayerBySocket(player.socket);
-
-      // Check if player retrieved by socket matches the stored player
       if (!playerBySocket || playerBySocket.id !== player.id) {
         invalidPlayers.push(playerId);
       }
@@ -86,9 +149,7 @@ function checkRoomValidity() {
       console.log(`[Server] Player ${playerId} in Room ${roomId} is not valid. Removed from the room.`);
     });
 
-    // Check if room's player count is 0 or less
     if (room.playerCount <= 0) {
-      // Close the room if player count reaches 0
       serverData.rooms.delete(roomId);
     }
   });
@@ -96,11 +157,10 @@ function checkRoomValidity() {
 
 setInterval(checkRoomValidity, 10000);
 
-
 function joinRoom(ws, roomId, _gameversion, ishosting) {
   const player = getPlayerBySocket(ws);
   if (player && player.roomId) {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
+    if (process.env.debugType >= 2) return console.log(`[Server] Player ${player.id} is already in a room: ${player}`);
   }
   const room = serverData.rooms.get(roomId);
   if (!room) return;
@@ -115,7 +175,7 @@ function joinRoom(ws, roomId, _gameversion, ishosting) {
   room.players.set(newPlayer.id, newPlayer);
   serverData.players.set(newPlayer.id, newPlayer);
   room.playerCount++;
-  if(process.env.DEBUG === 'full') {
+  if (process.env.debugType === 3) {
     console.log(`[Server] Player ${newPlayer.id} joined the room ${newPlayer.roomId}`);
     console.log(`[Server] Room ${roomId}'s Player Count: ${room.playerCount}`);
   }
@@ -125,7 +185,7 @@ function joinRoom(ws, roomId, _gameversion, ishosting) {
 function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
   const player = getPlayerBySocket(ws);
   if (player && player.roomId) {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} is already in a room.`);
+    if (process.env.debugType >= 2) return console.log(`[Server] Player ${player.id} is already in a room.`);
   }
   const room = {
     id: createId(),
@@ -146,44 +206,28 @@ function createRoom(ws, roomName, _scene, _scenepath, _gameversion, max) {
 
 async function removePlayer(ws) {
   const player = getPlayerBySocket(ws);
-
-  if (!player) {
-    console.error("[Debug] Player not found.");
-    return;
-  }
-
+  if (!player) return;
   const room = serverData.rooms.get(player.roomId);
-
-  if (!room) {
-    console.error("[Debug] Room not found.");
-    return;
-  }
-
+  if (!room) return console.error("[Debug] Room not found.");
   if (player.hosting && room.players.size > 1) {
     const players = Array.from(room.players.values());
-
     if (!Array.isArray(players)) {
       console.error("[Debug] Players is not an array.");
       return;
     }
-
-    let nextPlayer = null;
-
+    let nextPlayer;
     for (const playerobject of players) {
       if (playerobject !== player) {
         nextPlayer = playerobject;
         break;
       }
     }
-
     if (nextPlayer) {
       var data = JSON.stringify({
         type: "newhost",
         newhostid: nextPlayer.id
       });
-      
       nextPlayer.hosting = true;
-
       try {
         players.forEach((playertosend) => {
           if (playertosend !== player) {
@@ -205,24 +249,24 @@ async function removePlayer(ws) {
   serverData.players.delete(player.id);
   room.players.delete(player.id);
   room.playerCount--;
-  if(room.playerCount == 0){
+  if (room.playerCount == 0) {
     serverData.rooms.delete(room.id);
   }
 
-  if(process.env.DEBUG === 'full') return console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
-  if(process.env.DEBUG === 'full') return console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
+  if (process.env.debugType === 3) return console.log(`[Server] Player ${player.id} left from the room ${player.roomId}`);
+  if (process.env.debugType === 3) return console.log(`[Server] Room ${player.roomId}'s Player Count: ${room.playerCount}`);
 
   if (serverData.rooms.size === 0) {
-    clearInterval(intervalReference);
+    clearInterval(messageInterval);
   }
 }
 
 function scheduleGc() {
   if (!global.gc) return;
   var minutes = Math.random() * 30 + 15;
-  setTimeout(function(){
+  setTimeout(function () {
     global.gc();
-    if(process.env.DEBUG === 'full') return console.log('[Debug] Garbage Collector was ran.');
+    if (process.env.debugType === 3) return console.log('[Debug] Garbage Collector was ran.');
     scheduleGc();
   }, minutes * 60 * 1000);
 }
@@ -253,7 +297,7 @@ function broadcastRoomInfo() {
 
 async function handleRPC(ws, data) {
   let player = getPlayerBySocket(ws)
-  if (player === null) return;
+  if (player == null) return;
   let players = getPlayersInRoom(player.roomId);
   players.forEach((p) => {
     let parsedData = JSON.parse(data);
@@ -364,9 +408,18 @@ async function sendBundledCompressedMessages() {
   MessagesToSend.forEach(async (messages, socket) => {
     const bundledMessage = messages.join('\n');
     try {
-      let compressedData = await gzip(bundledMessage);
-      if(socket != undefined){
-        socket.emit('clientmessage', compressedData);
+      if (socket) {
+        const gzip = createGzip();
+        const buffers = [];
+        gzip.on('data', (chunk) => buffers.push(chunk));
+        gzip.on('end', () => {
+          const compressedData = Buffer.concat(buffers);
+          socket.emit('clientmessage', compressedData);
+        });
+        gzip.on('error', (error) => {
+          console.error("[Error] There was a issue compressing the bundled messages:", error);
+        });
+        gzip.end(bundledMessage);
       }
     } catch (error) {
       console.error("Error compressing and sending message:", error);
@@ -379,7 +432,7 @@ const connectedWebClients = new Map();
 const MessagesToSend = new Map();
 
 function startInterval() {
-  intervalReference = setInterval(sendBundledCompressedMessages, 1000 / 30);
+  messageInterval = setInterval(sendBundledCompressedMessages, 1000 / 30);
 }
 
 const wss = new Server(server, {
@@ -388,16 +441,11 @@ const wss = new Server(server, {
   pingTimeout: 60000
 });
 
-
 setInterval(() => {
-
   if (connectedWebClients.size > 0) {
-    const roomslistid = [];
-    const totalMemoryInMB = (totalmem() / (1024 ** 2)).toFixed(2);
-    const freeMemoryInMB = (freemem() / (1024 ** 2)).toFixed(2);
-    const memoryUsed = (totalMemoryInMB - freeMemoryInMB).toFixed(2);
+    const roomsList = [];
     serverData.rooms.forEach((room) => {
-      roomslistid.push({
+      roomsList.push({
         RoomID: room.id,
         RoomName: room.name,
         RoomPlayerCount: room.playerCount,
@@ -408,30 +456,42 @@ setInterval(() => {
 
     connectedWebClients.forEach((client) => {
       const data = {
-        rooms: roomslistid,
-        globalplayercount: getTotalPlayerCount(),
-        uptime: convertSecondsToUnits(Math.round(uptime())),
-        usage: Math.round(memoryUsed),
+        rooms: roomsList,
+        playerCount: getTotalPlayerCount(),
+        uptime: convertSecondsToUnits(Math.round(process.uptime())),
+        usage: Math.round((process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)),
       };
-      client.emit("webmessageclient", data);
+      client.emit("webClient", data);
     })
   }
 }, 1000);
 
 wss.on('connection', (ws) => {
-  ws.on('message', async (message) => {
-    const decompressedmessage = await ungzip(message);
-    const buffer = Buffer.from(decompressedmessage);
-    const messagelist = buffer.toString('utf8').split('\n');
-    const filteredMessageList = messagelist.filter(msg => msg.trim() !== '');
-    filteredMessageList.forEach((element) => {
-      try {
-        const data = JSON.parse(element);
-        handleAction(ws, data);
-      } catch (err) {
-        return;
-      }
-    });
+  ws.on('message', async (compressedMessage) => {
+    try {
+      const gunzip = createGunzip();
+      const chunks = [];
+      gunzip.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      gunzip.write(compressedMessage);
+      gunzip.end();
+      await finished(gunzip);
+      const decompressedMessage = Buffer.concat(chunks).toString('utf8');
+      const messageList = decompressedMessage.split('\n');
+      const filteredMessageList = messageList.filter(msg => msg.trim() !== '');
+
+      filteredMessageList.forEach((element) => {
+        try {
+          const data = JSON.parse(element);
+          handleAction(ws, data);
+        } catch (err) {
+          console.error("Error parsing message:", err);
+        }
+      });
+    } catch (err) {
+      console.error('[Error] Failed Decompressing the Message sent from Client', err)
+    }
   });
 
   ws.on('ping', (timestamp) => {
@@ -442,28 +502,21 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('webmessage', () => {
+  ws.on('webClient', () => {
     connectedWebClients.set(ws, ws);
-    if(process.env.DEBUG === 'full') return console.log("[Server] Web Client Connected");
+    if (process.env.debugType === 3) return console.log("[Server] Web Client Connected");
   });
 
   ws.on('disconnect', () => {
     if (connectedWebClients.has(ws)) {
       connectedWebClients.delete(ws);
-      if(process.env.DEBUG === 'full') return console.log("[Server] Web Client Removed");
+      if (process.env.debugType === 3) return console.log("[Server] Web Client Removed");
     } else {
       removePlayer(ws);
     }
   });
 });
 
-const port = 8880;
-server.listen(port, () => {
-  if(process.env.HTTPS && process.env.HTTPS === 'true' && process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with https and debug set to ${process.env.DEBUG}`)
-    console.log(`[Server] Listening on port ${port} with https`);
-  } else {
-    if(process.env.DEBUG === 'minimal' || process.env.DEBUG === 'full') return console.log(`[Server] Listening on port ${port} with debug set to ${process.env.DEBUG}`)
-    console.log(`[Server] Listening on port ${port}`);
-  }
+server.listen(process.env.port, () => {
+  console.log(`[Server] Listening on port ${process.env.port} ${process.env.useHTTPS === 'true' ? 'using https' : ''}${process.env.debugType ? `and debug set to ${process.env.debugType}` : ''}`);
 });

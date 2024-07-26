@@ -1,5 +1,5 @@
 #!/bin/sh
-if [ "$EXPOSE_GC" == "true" ]; then
+if [ "$exposeGC" == true ]; then
   exec node --expose-gc index.js
 else
   exec node index.js
