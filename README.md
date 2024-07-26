@@ -12,7 +12,7 @@ These can be installed just by typing ```npm install``` or ```yarn install``` de
 > [!NOTE]
 > If you are using docker the following packages are automatically installed.
 ## Running
-```node
+```bash
 node index.js
 ```
 
