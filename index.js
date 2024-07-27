@@ -52,7 +52,7 @@ if (!process.env.port) {
   process.env.port = 8880
 }
 
-if (process.env.useHTTPS === 'true') {
+if (process.env.useHTTPS === true) {
   if (!process.env.httpsCert) return console.log('[Error] useHTTPS is set to true but the certificate path is missing');
   if (!process.env.httpsKey) return console.log('[Error] useHTTPS is set to true but the certificate key path is missing');
   const { createServer } = require('https')
@@ -518,5 +518,5 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(process.env.port, () => {
-  console.log(`[Server] Listening on port ${process.env.port} ${process.env.useHTTPS === 'true' ? 'using https' : ''}${process.env.debugType ? `and debug set to ${process.env.debugType}` : ''}`);
+  console.log(`[Server] Listening on port ${process.env.port} ${process.env.useHTTPS === 'true' ? 'using https ' : ''}${process.env.debugType ? `and debug set to ${process.env.debugType}` : ''}`);
 });
