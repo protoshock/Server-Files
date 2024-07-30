@@ -1,4 +1,4 @@
-FROM node:18.18-alpine3.18
+FROM node:iron-alpine3.20
 WORKDIR /usr/src/app
 COPY . .
 RUN npm install

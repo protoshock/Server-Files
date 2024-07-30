@@ -92,6 +92,10 @@ app.get('/api/stats', (req, res) => {
   })
 })
 
+app.get('/ping', (req, res) => {
+  res.status(200).json({ message: 'pong' });
+})
+
 const serverData = {
   players: new Map(),
   rooms: new Map(),
@@ -459,7 +463,7 @@ setInterval(() => {
         rooms: roomsList,
         playerCount: getTotalPlayerCount(),
         uptime: convertSecondsToUnits(Math.round(process.uptime())),
-        usage: Math.round((process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)),
+        memoryUsage: Math.round((process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)),
       };
       client.emit("webClient", data);
     })

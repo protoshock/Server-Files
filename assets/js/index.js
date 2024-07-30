@@ -23,7 +23,7 @@ socket.on('webClient', (data) => {
     const rooms = data.rooms;
     const playercount = data.playerCount;
     const Uptime = data.uptime;
-    const Usage = data.usage;
+    const Usage = data.memoryUsage;
     usagehistory.push(Usage);
     playerhistory.push(playercount);
     time.push(i);
