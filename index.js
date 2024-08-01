@@ -5,6 +5,7 @@ const fs = require('fs')
 const express = require('express')
 const path = require('path')
 const { finished } = require('stream/promises');
+const sharp = require('sharp');
 require('dotenv').config()
 const app = express();
 let server;
@@ -488,6 +489,7 @@ wss.on('connection', (ws) => {
       filteredMessageList.forEach((element) => {
         try {
           const data = JSON.parse(element);
+          console.log(data)
           handleAction(ws, data);
         } catch (err) {
           console.error("Error parsing message:", err);
@@ -496,6 +498,61 @@ wss.on('connection', (ws) => {
     } catch (err) {
       console.error('[Error] Failed Decompressing the Message sent from Client', err)
     }
+  });
+
+  ws.on('query', () => {
+    const filePath = path.join(__dirname, './serverIcon.png');
+    const gzip = createGzip();
+    const chunks = [];
+    gzip.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    fs.stat(filePath, (err, stats) => {
+      if (err) {
+        gzip.write({ serverIcon: false });
+        gzip.end()
+        return;
+      }
+
+      if (stats.size > 10 * 1024 * 1024){
+        console.error('[Error] Server Icon exceeds 10 MB');
+        gzip.write({ serverIcon: false });
+        gzip.end()
+        return;
+      }
+
+      sharp(filePath)
+        .metadata((err, metadata) => {
+          if (err) {
+            console.error('Error processing the image:', err);
+            gzip.write({ serverIcon: false });
+            gzip.end()
+            return;
+          }
+
+          if (metadata.width === 64 && metadata.height === 64) {
+            fs.readFile(filePath, (err, data) => {
+              if (err) {
+                console.error('Error reading the file:', err);
+                gzip.write({ serverIcon: false });
+                gzip.end()
+                return;
+              }
+
+              const base64 = data.toString('base64');
+              gzip.on('end', () => {
+                const compressedData = Buffer.concat(chunk);
+                ws.emit('query', compressedData);
+              });
+              gzip.end(JSON.stringify({ serverIcon: base64 }));
+            });
+          } else {
+            console.error("[Error] Server Icon isn't 64x64");
+            gzip.write({ serverIcon: false });
+            gzip.end()
+          }
+        });
+    });
   });
 
   ws.on('ping', (timestamp) => {
