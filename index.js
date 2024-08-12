@@ -5,7 +5,7 @@ const fs = require('fs')
 const express = require('express')
 const path = require('path')
 const { finished } = require('stream/promises');
-const sharp = require('sharp');
+// const sharp = require('sharp');
 require('dotenv').config()
 const app = express();
 let server;
@@ -500,7 +500,7 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('query', () => {
+  /* ws.on('query', () => {
     const filePath = path.join(__dirname, './serverIcon.png');
     const gzip = createGzip();
     const chunks = [];
@@ -553,7 +553,7 @@ wss.on('connection', (ws) => {
           }
         });
     });
-  });
+  }); */
 
   ws.on('ping', (timestamp) => {
     ws.volatile.emit('pong', timestamp);
