@@ -5,7 +5,7 @@ on:
     branches:
       - "main"
     paths:
-      - "index.mjs"
+      - "index.js"
       - "package*.json"
       - "assets/*"
       - "Dockerfile"
