@@ -1,3 +1,4 @@
+# Armv6
 FROM arm32v6/node:lts-alpine
 WORKDIR /usr/src/app
 RUN apk --no-cache add git
