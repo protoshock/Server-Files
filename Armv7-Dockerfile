@@ -1,4 +1,4 @@
-FROM arm32v6/node:lts-alpine
+FROM arm32v7/node:lts-alpine
 WORKDIR /usr/src/app
 RUN apk --no-cache add git
 RUN git clone https://github.com/protoshock/Server-Files.git .
