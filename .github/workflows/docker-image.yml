@@ -55,28 +55,11 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Determine Dockerfile and Tag
-        id: determine-dockerfile
-        run: |
-          if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
-            echo "dockerfile=Dockerfile" >> $GITHUB_ENV
-            echo "tag=main" >> $GITHUB_ENV
-          elif [[ "${{ matrix.platform }}" == "linux/arm/v6" ]]; then
-            echo "dockerfile=Armv6-Dockerfile" >> $GITHUB_ENV
-            echo "tag=armv6-main" >> $GITHUB_ENV
-          elif [[ "${{ matrix.platform }}" == "linux/arm/v7" ]]; then
-            echo "dockerfile=Armv7-Dockerfile" >> $GITHUB_ENV
-            echo "tag=armv7-main" >> $GITHUB_ENV
-          elif [[ "${{ matrix.platform }}" == "linux/arm64" ]]; then
-            echo "dockerfile=Arm64-Dockerfile" >> $GITHUB_ENV
-            echo "tag=arm64-main" >> $GITHUB_ENV
-          fi
 
       - name: Build and push Docker image
         id: build
@@ -84,13 +67,10 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          file: ${{ env.dockerfile }}
+          file: ${{ matrix.platform == 'linux/arm/v6' && 'Armv6-Dockerfile' || matrix.platform == 'linux/arm/v7' && 'Armv7-Dockerfile' || matrix.platform == 'linux/arm64' && 'Arm64-Dockerfile' || 'Dockerfile' }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: |
-            ${{ env.REGISTRY_IMAGE }}:${{ env.tag }}
-            ghcr.io/server-files:${{ env.tag }}
-          push: true
-  
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
@@ -125,7 +105,7 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY_IMAGE }}
-            ghcr.io/server-files
+            ghcr.io/${{ github.repository }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -134,19 +114,18 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list and push
+        working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create \
-            --tag ${{ env.REGISTRY_IMAGE }}:main \
-            --tag ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }} \
-            ${{ env.REGISTRY_IMAGE }}@sha256:$(cat /tmp/digests/*)
-            
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
