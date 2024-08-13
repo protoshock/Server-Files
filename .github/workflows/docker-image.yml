@@ -86,8 +86,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           file: ${{ env.dockerfile }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ${{ env.REGISTRY_IMAGE }}:${{ env.tag }}
-          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }}:${{ env.tag }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
