@@ -86,8 +86,11 @@ jobs:
           platforms: ${{ matrix.platform }}
           file: ${{ env.dockerfile }}
           labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY_IMAGE }}:${{ env.tag }}
+            ghcr.io/${{ github.repository }}:${{ env.tag }}
           push: true
-
+  
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
