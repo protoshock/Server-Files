@@ -1,11 +1,13 @@
 FROM node:iron-alpine3.20
 WORKDIR /usr/src/app
-RUN apk --no-cache add git
-RUN git clone https://github.com/protoshock/Server-Files.git .
+RUN apk add --no-cache g++ \
+    make \
+    libc6-compat
+COPY . .
 RUN npm install
 RUN npm install --cpu=armv7 --os=linux --libc=musl sharp
-ARG EXPOSE_GC=false
-ENV EXPOSE_GC=$EXPOSE_GC
 RUN chmod +x /usr/src/app/entryscript.sh
+ARG exposeGC=false
+ENV exposeGC=$exposeGC
 ENTRYPOINT ["/usr/src/app/entryscript.sh"]
 EXPOSE 8880

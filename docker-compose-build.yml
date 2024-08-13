@@ -3,7 +3,7 @@ services:
   protoshock-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile # For ARM64/ARMV6/ARMV7 Change to ARCH-Dockerfile
     image: protoshock-server
     container_name: Protoshock-Server
     ports:

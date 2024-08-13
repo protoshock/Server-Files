@@ -11,6 +11,7 @@ on:
       - "Dockerfile"
       - "Armv6-Dockerfile"
       - "Armv7-Dockerfile"
+      - "Arm64-Dockerfile"
       - "docker-compose.yml"
   
   workflow_dispatch:
@@ -60,14 +61,32 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine Dockerfile and Tag
+        id: determine-dockerfile
+        run: |
+          if [[ "${{ matrix.platform }}" == "linux/amd64" ]]; then
+            echo "dockerfile=Dockerfile" >> $GITHUB_ENV
+            echo "tag=main" >> $GITHUB_ENV
+          elif [[ "${{ matrix.platform }}" == "linux/arm/v6" ]]; then
+            echo "dockerfile=Armv6-Dockerfile" >> $GITHUB_ENV
+            echo "tag=armv6-main" >> $GITHUB_ENV
+          elif [[ "${{ matrix.platform }}" == "linux/arm/v7" ]]; then
+            echo "dockerfile=Armv7-Dockerfile" >> $GITHUB_ENV
+            echo "tag=armv7-main" >> $GITHUB_ENV
+          elif [[ "${{ matrix.platform }}" == "linux/arm64" ]]; then
+            echo "dockerfile=Arm64-Dockerfile" >> $GITHUB_ENV
+            echo "tag=arm64-main" >> $GITHUB_ENV
+          fi
+
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          file: ${{ matrix.platform == 'linux/arm/v6' && 'Armv6-Dockerfile' || matrix.platform == 'linux/arm/v7' && 'Armv7-Dockerfile' || 'Dockerfile' }}
+          file: ${{ env.dockerfile }}
           labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY_IMAGE }}:${{ env.tag }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest

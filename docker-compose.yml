@@ -1,7 +1,7 @@
 version: '3'
 services:
   protoshock-server:
-    image: protoshock/protoshock-server:main
+    image: protoshock/protoshock-server:main # For ARM64/ARMV6/ARMV7 Change to ARCH-main Example: armv64-main
     container_name: Protoshock
     ports:
       - "8880:8880"
