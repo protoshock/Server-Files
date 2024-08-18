@@ -25,19 +25,19 @@ jobs:
           - linux/arm64
         include:
           - platform: linux/amd64
-            image: protoshock/protoshock-server:main
+            image: protoshock/protoshock-server
             dockerfile: Dockerfile
-            tag_suffix: main
+            tag_suffix: latest
           - platform: linux/arm/v6
-            image: protoshock/protoshock-server:armv6
+            image: protoshock/protoshock-server
             dockerfile: Armv6-Dockerfile
             tag_suffix: armv6
           - platform: linux/arm/v7
-            image: protoshock/protoshock-server:armv7
+            image: protoshock/protoshock-server
             dockerfile: Armv7-Dockerfile
             tag_suffix: armv7
           - platform: linux/arm64
-            image: protoshock/protoshock-server:arm64
+            image: protoshock/protoshock-server
             dockerfile: Arm64-Dockerfile
             tag_suffix: arm64
 
@@ -63,7 +63,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ matrix.image }}-${{ matrix.tag_suffix }}
+          images: ${{ matrix.image }}:${{ matrix.tag_suffix }}
 
       - name: Build and push
         uses: docker/build-push-action@v4
@@ -72,5 +72,5 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ matrix.image }}:${{ matrix.tag_suffix }}
           labels: ${{ steps.meta.outputs.labels }}
