@@ -7,7 +7,7 @@ You can either run it directly if you clone this repo or use Docker.
 - express
 - dotenv
   
-These can be installed just by typing ```npm install``` or ```yarn install``` depending on your package manager
+These can be installed just by typing ```npm install``` or ```bun install```([bun.sh](https://bun.sh)) depending on your package manager
 
 > [!NOTE]
 > If you are using docker the following packages are automatically installed.
@@ -15,7 +15,10 @@ These can be installed just by typing ```npm install``` or ```yarn install``` de
 ```bash
 node index.js
 ```
-
+or
+```bash
+bun run index.js
+```
 > [!NOTE]
 > If you want to you can enable manually garbage collection by running with this flag ``node index.js --expose-gc``
 
