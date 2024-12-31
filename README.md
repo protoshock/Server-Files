@@ -7,7 +7,7 @@ You can either run it directly if you clone this repo or use Docker.
 - express
 - dotenv
   
-These can be installed just by typing ```npm install``` or ```bun install```([bun.sh](https://bun.sh)) depending of your package manager
+These can be installed just by typing ```npm install``` or ```bun install```([bun.sh](https://bun.sh)) depending on your package manager
 
 > [!NOTE]
 > If you are using docker the following packages are automatically installed.
